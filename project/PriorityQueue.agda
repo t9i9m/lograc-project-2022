@@ -114,19 +114,75 @@ module Tests where
 --   ≤ᵖ-trans = ≤-trans }
 
 
-record PriorityQueue {l : Level} 
-                     (Pr : Priority {l}) (Value : Set) : Set (lsuc l) where 
+record PriorityQueue {l₁ l₂ l₃ : Level} 
+                     (Pr : Priority {l₁}) (Value : Set l₂) : Set (lsuc (l₁ ⊔ l₂ ⊔ l₃)) where 
   open Priority Pr renaming (P to Priorities)
 
   field 
     -- type of priorityQueue data (for storing priority-value pairs)
-    priorityQueue : Set
+    priorityQueue : Set l₃
     -- empty priorityQueue
     emp : priorityQueue
     -- insert element with priority
-    insert : priorityQueue → Value → Priorities → priorityQueue
-
-    peek : priorityQueue → Value
+    insert : priorityQueue → Priorities × Value → priorityQueue
+    -- peek element with priority
+    peek : priorityQueue → Maybe Value
+    -- pop element with priority
     pop : priorityQueue → priorityQueue
+  
+    -- behavioural properties
+    peek-emp : peek emp ≡ nothing
+    pop-emp : pop emp ≡ emp
+    insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ just v
+    insert₁-pop : (pv : Priorities × Value) → pop (insert emp pv) ≡ emp
     
- 
+    insert₂-peek-p₁≤p₂ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₁ ≤ᵖ p₂
+                  → peek (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ just v₁
+    insert₂-peek-p₂≤p₁ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₂ ≤ᵖ p₁
+                  → peek (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ just v₂
+    insert₂-pop-p₁≤p₂ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₁ ≤ᵖ p₂
+                  → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₂ , v₂)
+    insert₂-pop-p₂≤p₁ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₂ ≤ᵖ p₁
+                  → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
+    
+    
+module ListPriorityQueueNonOrdered {l₁ l₂ : Level} 
+                         (Pr : Priority {l₁}) (Value : Set l₂) where
+
+  open Priority Pr renaming (P to Priorities)
+  open PriorityQueue
+
+  ListPriorityQueue : PriorityQueue Pr Value
+  ListPriorityQueue = record { 
+    priorityQueue = List (Priorities × Value) ;
+     emp = [] ;
+     insert = insert-aux ;
+     peek = {!   !} ;
+     pop = {!   !} ;
+     peek-emp = {!   !} ;
+     pop-emp = {!   !} ;
+     insert₁-peek = {!   !} ;
+     insert₁-pop = {!   !} ;
+     insert₂-peek-p₁≤p₂ = {!   !} ;
+     insert₂-peek-p₂≤p₁ = {!   !} ;
+     insert₂-pop-p₁≤p₂ = {!   !} ;
+     insert₂-pop-p₂≤p₁ = {!   !} }
+     
+    where 
+      insert-aux : List (Priorities × Value) → Priorities × Value → List (Priorities × Value)
+      insert-aux xs pv = pv ∷ xs
+
+      peek-aux-aux : List (Priorities × Value) → Maybe (Priorities × Value)
+      peek-aux-aux xs = {!   !}
+
+      peek-aux : List (Priorities × Value) → Maybe Value
+      peek-aux [] = nothing
+      peek-aux ((p , v) ∷ xs) with peek-aux xs
+      ... | just x = {!   !}
+      ... | nothing = {!   !}
+
+  
