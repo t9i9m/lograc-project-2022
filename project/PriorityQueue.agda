@@ -15,7 +15,7 @@ open import Data.Vec     using (Vec; []; _∷_)
 open import Function     using (id; _∘_)
 
 import Relation.Binary.PropositionalEquality as Eq
-open Eq                  using (_≡_; refl; sym; trans; cong; cong₂; subst; [_]; inspect)
+open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst; [_]; inspect)
 open Eq.≡-Reasoning      using (begin_; _≡⟨⟩_; step-≡; _∎)
 
 open import Axiom.Extensionality.Propositional using (Extensionality)
@@ -70,7 +70,8 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
   data Order (a b : P) : Set where
     le : a ≤ᵖ b → Order a b
     ge : b ≤ᵖ a → Order a b
-
+    -- TODO eq
+  
   cmp : (p₁ p₂ : P) → Order p₁ p₂
   cmp p₁ p₂ with ≤ᵖ-total p₁ p₂
   ... | inj₁ p₁≤p₂ = le p₁≤p₂
@@ -138,15 +139,19 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     
     insert₂-peek-p₁≤p₂ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
+                  → p₁ ≢ p₂
                   → peek (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ just v₁
     insert₂-peek-p₂≤p₁ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
+                  → p₁ ≢ p₂ 
                   → peek (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ just v₂
     insert₂-pop-p₁≤p₂ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
+                  → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₂ , v₂)
     insert₂-pop-p₂≤p₁ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
+                  → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
     
     
@@ -161,12 +166,12 @@ module ListPriorityQueueNonOrdered {l₁ l₂ : Level}
     priorityQueue = List (Priorities × Value) ;
      emp = [] ;
      insert = insert-aux ;
-     peek = {!   !} ;
-     pop = {!   !} ;
-     peek-emp = {!   !} ;
-     pop-emp = {!   !} ;
-     insert₁-peek = {!   !} ;
-     insert₁-pop = {!   !} ;
+     peek = peek-aux ;
+     pop = pop-aux ;
+     peek-emp = refl ;
+     pop-emp = refl ;
+     insert₁-peek = insert₁-peek-aux ;
+     insert₁-pop = insert₁-pop-aux ;
      insert₂-peek-p₁≤p₂ = {!   !} ;
      insert₂-peek-p₂≤p₁ = {!   !} ;
      insert₂-pop-p₁≤p₂ = {!   !} ;
@@ -177,12 +182,48 @@ module ListPriorityQueueNonOrdered {l₁ l₂ : Level}
       insert-aux xs pv = pv ∷ xs
 
       peek-aux-aux : List (Priorities × Value) → Maybe (Priorities × Value)
-      peek-aux-aux xs = {!   !}
+      peek-aux-aux [] = nothing
+      peek-aux-aux ((p , v) ∷ xs) with peek-aux-aux xs 
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p' 
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.le _ = just (p , v)
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.ge _ = just (p' , v')
+      peek-aux-aux ((p , v) ∷ xs) | nothing = just (p , v)
 
       peek-aux : List (Priorities × Value) → Maybe Value
-      peek-aux [] = nothing
-      peek-aux ((p , v) ∷ xs) with peek-aux xs
-      ... | just x = {!   !}
-      ... | nothing = {!   !}
+      peek-aux xs with peek-aux-aux xs
+      ... | just (p , v) = just v
+      ... | nothing = nothing
 
-  
+      pop-aux : List (Priorities × Value) → List (Priorities × Value)
+      pop-aux [] = []
+      pop-aux ((p , v) ∷ xs) with peek-aux-aux xs
+      pop-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p'
+      pop-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.le _ = xs
+      pop-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.ge _ = pop-aux xs
+      pop-aux ((p , v) ∷ xs) | nothing = []
+
+      insert₁-peek-aux : ((p , v) : Priorities × Value) →
+                         peek-aux (insert-aux [] (p , v)) ≡ just v
+      insert₁-peek-aux (p , v) = refl
+
+      insert₁-pop-aux : (pv : Priorities × Value) → [] ≡ []
+      insert₁-pop-aux x = refl
+
+      insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                    → p₁ ≤ᵖ p₂
+                    → p₁ ≢ p₂
+                    → peek-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ just v₁  
+      insert₂-peek-p₁≤p₂-aux (p , v) (p' , v') x y with  ≤ᵖ-total p' p | cmp p' p
+      ... | inj₁ x₁ | TotalOrdering.le x₂ = {!   !}
+      ... | inj₁ x₁ | TotalOrdering.ge x₂ = {!   !}
+      ... | inj₂ y₁ | TotalOrdering.le x₁ = {!   !}
+      ... | inj₂ y₁ | TotalOrdering.ge x₁ = {!   !}
+        -- begin
+        --   peek-aux (insert-aux (insert-aux [] (p , v)) (p' , v'))
+        -- ≡⟨ refl ⟩
+        --   peek-aux (insert-aux ((p , v) ∷ []) (p' , v'))
+        -- ≡⟨ refl ⟩
+        --   peek-aux ((p' , v') ∷ (p , v) ∷ [])  
+        -- ≡⟨ {! F !} ⟩
+        --   just v  
+        -- ∎ 
