@@ -47,7 +47,9 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
     -- strongly connected (total): either one or the other must be true
     ≤ᵖ-total : (p₁ p₂ : P) → (p₁ ≤ᵖ p₂) ⊎ (p₂ ≤ᵖ p₁)
 
-    ≤ᵖ-total-strict : (p₁ p₂ : P) → (p₁ ≤ᵖ p₂) ⊎ (¬ (p₁ ≤ᵖ p₂))
+-- If you uncomment the next two lines Agda complains... ?!?!
+-- module _ {l : Level} where
+--   open TotalOrdering {l}
 
   data Order (a b : P) : Set where
     le : a ≤ᵖ b → Order a b
@@ -57,23 +59,15 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
     a<b : a ≤ᵖ b → a ≢ b → TriOrder a b
     a=b : a ≡ b → TriOrder a b 
     a>b : b ≤ᵖ a → a ≢ b → TriOrder a b
-  
-  cmp : (p₁ p₂ : P) → Order p₁ p₂
-  cmp p₁ p₂ with ≤ᵖ-total-strict p₁ p₂
-  ... | inj₁ p₁≤p₂ = le p₁≤p₂
-  ... | inj₂ p₁>p₂ = gt p₁>p₂
-
-  cmp-tri : (p₁ p₂ : P) → TriOrder p₁ p₂
-  cmp-tri p₁ p₂ = {!   !}
-
-  -- cmp-aux : {p₁ p₂ : P} → (p₁ ≤ᵖ p₂) → p₁ ≢ p₂ → cmp p₁ p₂ ≡ le (p₁ ≤ᵖ p₂)
-  -- cmp-aux p q = ?
 
 record Priority {l : Level} : Set (lsuc l) where
   field
     Ord : TotalOrdering {l}
   open TotalOrdering Ord public  -- export all names to the outside!
 
+  field
+    cmp : (p₁ p₂ : P) → Order p₁ p₂
+    cmp' : (p₁ p₂ : P) → TriOrder p₁ p₂
 
 record PriorityQueue {l₁ l₂ l₃ : Level} 
                      (Pr : Priority {l₁}) (Value : Set l₂) : Set (lsuc (l₁ ⊔ l₂ ⊔ l₃)) where 
@@ -133,7 +127,7 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
      insert₁-peek = insert₁-peek-aux ;
      insert₁-pop = insert₁-pop-aux ; 
      insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
-     insert₂-peek-p₂≤p₁ = {!   !} ;
+     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
      insert₂-pop-p₁≤p₂ = {!   !} ;
      insert₂-pop-p₂≤p₁ = {!   !} }
      
@@ -145,8 +139,8 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       peek-aux-aux [] = nothing
       peek-aux-aux ((p , v) ∷ xs) with peek-aux-aux xs 
       peek-aux-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p' 
-      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.le _ = just (p , v)
-      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.gt _ = just (p' , v')
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | le _ = just (p , v)
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = just (p' , v')
       peek-aux-aux ((p , v) ∷ xs) | nothing = just (p , v)
 
       peek-aux : List (Priorities × Value) → Maybe Value
@@ -158,8 +152,8 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       pop-aux [] = []
       pop-aux ((p , v) ∷ xs) with peek-aux-aux xs
       pop-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p'
-      pop-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.le _ = xs
-      pop-aux ((p , v) ∷ xs) | just (p' , v') | TotalOrdering.gt _ = pop-aux xs
+      pop-aux ((p , v) ∷ xs) | just (p' , v') | le _ = xs
+      pop-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = pop-aux xs
       pop-aux ((p , v) ∷ xs) | nothing = []
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
@@ -174,24 +168,16 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
                     → p₁ ≢ p₂
                     → peek-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ just v₁ 
       insert₂-peek-p₁≤p₂-aux (p , v) (p' , v') p≤p' p≢p' with cmp p' p 
-      ... | TotalOrdering.le p'≤p = ⊥-elim (p≢p' (≤ᵖ-antisym p≤p' p'≤p))
-      ... | TotalOrdering.gt _ = refl
-      -- insert₂-peek-p₁≤p₂-aux (p , v) (p' , v') x y with  ≤ᵖ-total p' p | cmp p' p
-      -- ... | inj₁ x₁ | TotalOrdering.le x₂ = {!   !}
-      -- ... | inj₁ x₁ | TotalOrdering.ge x₂ = {!   !}
-      -- ... | inj₂ y₁ | TotalOrdering.le x₁ = {!   !}
-      -- ... | inj₂ y₁ | TotalOrdering.ge x₁ = {!   !}
-      --   -- begin
-      --   --   peek-aux (insert-aux (insert-aux [] (p , v)) (p' , v'))
-      --   -- ≡⟨ refl ⟩
-      --   --   peek-aux (insert-aux ((p , v) ∷ []) (p' , v'))
-      --   -- ≡⟨ refl ⟩
-      --   --   peek-aux ((p' , v') ∷ (p , v) ∷ [])  
-      --   -- ≡⟨ {! F !} ⟩
-      --   --   just v  
-      --   -- ∎ 
+      ... | le p'≤p = ⊥-elim (p≢p' (≤ᵖ-antisym p≤p' p'≤p))
+      ... | gt _ = refl
 
-
+      insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                    → p₂ ≤ᵖ p₁
+                    → p₁ ≢ p₂ 
+                    → peek-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ just v₂
+      insert₂-peek-p₂≤p₁-aux (p , v) (p' , v') p'≤p p≢p' with cmp p' p
+      ... | le _ = refl
+      ... | gt p'>p = ⊥-elim (p'>p p'≤p)
 
 
 module Tests where 
@@ -207,17 +193,36 @@ module Tests where
   -- -- Example: natural numbers are totally ordered
   ℕ-totalOrd : TotalOrdering
   ℕ-totalOrd = record { 
-    PartialOrd = ℕ-partialOrd ;
-    ≤ᵖ-total = ≤-total ; 
-    ≤ᵖ-total-strict = λ p₁ p₂ → {!   !} }
-  -- ℕ-totalOrd = record { 
-  --   PartialOrd = ℕ-partialOrd ; 
-  --   ≤ᵖ-total = ≤-total }
+    PartialOrd = ℕ-partialOrd ; 
+    ≤ᵖ-total = ≤-total }
 
-  ℕ-priority : Priority
-  ℕ-priority = record { Ord = ℕ-totalOrd }
-  
-  open Priority ℕ-priority
-  test : Order 2 3
-  test = cmp 2 3
-  
+  module _ where   
+    open TotalOrdering ℕ-totalOrd
+    open import Data.Nat.Properties using (≤-pred; suc-injective)
+    
+    ℕ-priority : Priority
+    ℕ-priority = record { 
+      Ord = ℕ-totalOrd ; 
+      cmp = cmp-aux ; 
+      cmp' = cmp'-aux }
+      where
+        cmp-aux-suc : {p₁ p₂ : ℕ} → Order p₁ p₂ → Order (suc p₁) (suc p₂)
+        cmp-aux-suc (le x) = le (s≤s x)
+        cmp-aux-suc (gt x) = gt (λ ss → x (≤-pred ss))
+       
+        cmp-aux : (p₁ p₂ : ℕ) → Order p₁ p₂
+        cmp-aux zero p₂ = le z≤n
+        cmp-aux (suc p₁) zero = gt (λ ())
+        cmp-aux (suc p₁) (suc p₂) = cmp-aux-suc (cmp-aux p₁ p₂)
+        
+        cmp'-aux-suc : {p₁ p₂ : ℕ} → TriOrder p₁ p₂ → TriOrder (suc p₁) (suc p₂)
+        cmp'-aux-suc (a<b x x₁) = a<b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
+        cmp'-aux-suc (a=b x) = a=b (cong suc x)
+        cmp'-aux-suc (a>b x x₁) = a>b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
+
+        cmp'-aux : (p₁ p₂ : ℕ) → TriOrder p₁ p₂
+        cmp'-aux zero zero = a=b refl
+        cmp'-aux zero (suc p₂) = a<b z≤n (λ ())
+        cmp'-aux (suc p₁) zero = a>b z≤n (λ ())
+        cmp'-aux (suc p₁) (suc p₂) = cmp'-aux-suc (cmp'-aux p₁ p₂)
+
