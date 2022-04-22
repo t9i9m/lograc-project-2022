@@ -202,20 +202,7 @@ module MinHeap {l₁ l₂ : Level}
   open PriorityQueue
 
   MinHeapPriorityQueue : PriorityQueue Pr Value
-  MinHeapPriorityQueue = record {
-     priorityQueue = ? ;
-     emp = [] ;
-     insert = insert-aux ;
-     peek = peek-aux ;
-     pop = pop-aux ;
-     peek-emp = refl ;
-     pop-emp = refl ;
-     insert₁-peek = insert₁-peek-aux ;
-     insert₁-pop = insert₁-pop-aux ; 
-     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
-     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
-     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
-     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
+  MinHeapPriorityQueue = {!   !}
 
 
 
