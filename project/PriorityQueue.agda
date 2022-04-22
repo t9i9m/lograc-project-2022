@@ -128,8 +128,8 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
      insert₁-pop = insert₁-pop-aux ; 
      insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
      insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
-     insert₂-pop-p₁≤p₂ = {!   !} ;
-     insert₂-pop-p₂≤p₁ = {!   !} }
+     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
+     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
      
     where 
       insert-aux : List (Priorities × Value) → Priorities × Value → List (Priorities × Value)
@@ -138,7 +138,7 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       peek-aux-aux : List (Priorities × Value) → Maybe (Priorities × Value)
       peek-aux-aux [] = nothing
       peek-aux-aux ((p , v) ∷ xs) with peek-aux-aux xs 
-      peek-aux-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p' 
+      peek-aux-aux ((p , v) ∷ xs) | just (p' , ₂) with cmp p p' 
       peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | le _ = just (p , v)
       peek-aux-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = just (p' , v')
       peek-aux-aux ((p , v) ∷ xs) | nothing = just (p , v)
@@ -153,7 +153,7 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       pop-aux ((p , v) ∷ xs) with peek-aux-aux xs
       pop-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p'
       pop-aux ((p , v) ∷ xs) | just (p' , v') | le _ = xs
-      pop-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = pop-aux xs
+      pop-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = (p , v) ∷ pop-aux xs
       pop-aux ((p , v) ∷ xs) | nothing = []
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
@@ -167,17 +167,33 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
                     → p₁ ≤ᵖ p₂
                     → p₁ ≢ p₂
                     → peek-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ just v₁ 
-      insert₂-peek-p₁≤p₂-aux (p , v) (p' , v') p≤p' p≢p' with cmp p' p 
-      ... | le p'≤p = ⊥-elim (p≢p' (≤ᵖ-antisym p≤p' p'≤p))
+      insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₂ p₁ 
+      ... | le p₂≤p₁ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
 
       insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                     → p₂ ≤ᵖ p₁
                     → p₁ ≢ p₂ 
                     → peek-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ just v₂
-      insert₂-peek-p₂≤p₁-aux (p , v) (p' , v') p'≤p p≢p' with cmp p' p
+      insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₂ p₁
       ... | le _ = refl
-      ... | gt p'>p = ⊥-elim (p'>p p'≤p)
+      ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₂≤p₁)
+
+      insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                    → p₁ ≤ᵖ p₂
+                    → p₁ ≢ p₂
+                    → pop-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ insert-aux [] (p₂ , v₂)
+      insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₂ p₁ 
+      ... | le p₂≤p₁ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
+      ... | gt p₂>p₁ = refl
+
+      insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                    → p₂ ≤ᵖ p₁
+                    → p₁ ≢ p₂ 
+                    → pop-aux (insert-aux (insert-aux [] (p₁ , v₁)) (p₂ , v₂)) ≡ insert-aux [] (p₁ , v₁)
+      insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₂ p₁
+      ... | le _ = refl
+      ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₂≤p₁)
 
 
 module Tests where 
