@@ -195,6 +195,30 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       ... | le _ = refl
       ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₂≤p₁)
 
+module MinHeap {l₁ l₂ : Level} 
+               (Pr : Priority {l₁}) (Value : Set l₂) where
+  
+  open Priority Pr renaming (P to Priorities)
+  open PriorityQueue
+
+  MinHeapPriorityQueue : PriorityQueue Pr Value
+  MinHeapPriorityQueue = record {
+     priorityQueue = ? ;
+     emp = [] ;
+     insert = insert-aux ;
+     peek = peek-aux ;
+     pop = pop-aux ;
+     peek-emp = refl ;
+     pop-emp = refl ;
+     insert₁-peek = insert₁-peek-aux ;
+     insert₁-pop = insert₁-pop-aux ; 
+     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
+     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
+     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
+     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
+
+
+
 
 module Tests where 
   -- -- Example: natural numbers are partially ordered
