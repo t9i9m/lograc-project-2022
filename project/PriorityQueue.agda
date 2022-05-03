@@ -1,7 +1,9 @@
+{-# OPTIONS --sized-types #-}
+
 module PriorityQueue where
 
 open import Level        renaming (zero to lzero; suc to lsuc)
-
+open import Size
 open import Data.Empty   using (⊥; ⊥-elim)
 open import Data.List    using (List; []; _∷_; length)
 open import Data.Maybe   using (Maybe; nothing; just)
@@ -11,18 +13,13 @@ open import Data.Product using (Σ; _,_; proj₁; proj₂; Σ-syntax; _×_; curr
 open import Data.Sum     using (_⊎_; inj₁; inj₂; [_,_])
 open import Data.Unit    using (⊤; tt)
 open import Data.Vec     using (Vec; []; _∷_)
-
 open import Function     using (id; _∘_)
-
 open import Relation.Nullary     using (¬_)
-
 import Relation.Binary.PropositionalEquality as Eq
 open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst; [_]; inspect)
 open Eq.≡-Reasoning      using (begin_; _≡⟨⟩_; step-≡; _∎)
-
 open import Axiom.Extensionality.Propositional using (Extensionality)
 postulate fun-ext : ∀ {a b} → Extensionality a b
-
 
 -- Non-strict partial order relation on a set A
 -- Note: see also Data.Nat.Properties
@@ -69,6 +66,53 @@ record Priority {l : Level} : Set (lsuc l) where
     cmp : (p₁ p₂ : P) → Order p₁ p₂
     cmp' : (p₁ p₂ : P) → TriOrder p₁ p₂
 
+module ℕ-ordering where 
+  -- Example: natural numbers are partially ordered
+  ℕ-partialOrd : PartialOrdering
+  ℕ-partialOrd = record { 
+    P = ℕ ; 
+    _≤ᵖ_ = _≤_ ; 
+    ≤ᵖ-refl = ≤-refl ; 
+    ≤ᵖ-antisym = ≤-antisym ;
+    ≤ᵖ-trans = ≤-trans }
+
+  -- Example: natural numbers are totally ordered
+  ℕ-totalOrd : TotalOrdering
+  ℕ-totalOrd = record { 
+    PartialOrd = ℕ-partialOrd ; 
+    ≤ᵖ-total = ≤-total }
+
+  module _ where   
+    open TotalOrdering ℕ-totalOrd
+    open import Data.Nat.Properties using (≤-pred; suc-injective)
+    
+    ℕ-priority : Priority
+    ℕ-priority = record { 
+      Ord = ℕ-totalOrd ; 
+      cmp = cmp-aux ; 
+      cmp' = cmp'-aux }
+      where
+        cmp-aux-suc : {p₁ p₂ : ℕ} → Order p₁ p₂ → Order (suc p₁) (suc p₂)
+        cmp-aux-suc (le x) = le (s≤s x)
+        cmp-aux-suc (gt x) = gt (λ ss → x (≤-pred ss))
+       
+        cmp-aux : (p₁ p₂ : ℕ) → Order p₁ p₂
+        cmp-aux zero p₂ = le z≤n
+        cmp-aux (suc p₁) zero = gt (λ ())
+        cmp-aux (suc p₁) (suc p₂) = cmp-aux-suc (cmp-aux p₁ p₂)
+        
+        cmp'-aux-suc : {p₁ p₂ : ℕ} → TriOrder p₁ p₂ → TriOrder (suc p₁) (suc p₂)
+        cmp'-aux-suc (a<b x x₁) = a<b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
+        cmp'-aux-suc (a=b x) = a=b (cong suc x)
+        cmp'-aux-suc (a>b x x₁) = a>b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
+
+        cmp'-aux : (p₁ p₂ : ℕ) → TriOrder p₁ p₂
+        cmp'-aux zero zero = a=b refl
+        cmp'-aux zero (suc p₂) = a<b z≤n (λ ())
+        cmp'-aux (suc p₁) zero = a>b z≤n (λ ())
+        cmp'-aux (suc p₁) (suc p₂) = cmp'-aux-suc (cmp'-aux p₁ p₂)
+
+
 record PriorityQueue {l₁ l₂ l₃ : Level} 
                      (Pr : Priority {l₁}) (Value : Set l₂) : Set (lsuc (l₁ ⊔ l₂ ⊔ l₃)) where 
   open Priority Pr renaming (P to Priorities)
@@ -90,7 +134,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     pop-emp : pop emp ≡ emp
     insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ just v
     insert₁-pop : (pv : Priorities × Value) → pop (insert emp pv) ≡ emp
-    
     insert₂-peek-p₁≤p₂ : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
                   → p₁ ≢ p₂
@@ -195,61 +238,72 @@ module ListPriorityQueueUnordered {l₁ l₂ : Level}
       ... | le _ = refl
       ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₂≤p₁)
 
-module MinHeap {l₁ l₂ : Level} 
+-- Weight biased leftist heap
+module MinHeap {l₁ l₂ l₃ : Level} 
                (Pr : Priority {l₁}) (Value : Set l₂) where
   
   open Priority Pr renaming (P to Priorities)
-  open PriorityQueue
+  open PriorityQueue      
+
+  open ℕ-ordering using (ℕ-priority)
+  open Priority ℕ-priority renaming (cmp to ℕ-cmp)
+
+  Rank = ℕ
+  
+  -- data HeapRanked : ℕ → Set (l₁ ⊔ l₂) where
+  --   empty : HeapRanked zero
+  --   node  : {r₁ r₂ : ℕ} 
+  --         → r₂ ≤ r₁ 
+  --         → Priorities × Value 
+  --         → HeapRanked r₁ 
+  --         → HeapRanked r₂ 
+  --         → HeapRanked (suc (r₁ + r₂))  
+
+  data Heap {i : Size} : Set (l₁ ⊔ l₂) where 
+    empty : Heap
+    node  : {i₁ i₂ : Size< i} → Rank → Priorities × Value → (l : Heap {i₁}) → (r : Heap {i₂}) → Heap
+
+  rank : (h : Heap) → Rank
+  rank empty = zero
+  rank (node r _ _ _) = r
+
+  merge : {i j : Size} → (l : Heap {i}) → (r : Heap {j}) → Heap
+  merge empty r = r
+  merge l empty = l
+  merge (node s₁ (p₁ , v₁) l₁ r₁) (node s₂ (p₂ , v₂) l₂ r₂) 
+    with cmp p₁ p₂ 
+        | ℕ-cmp (rank r₁ + s₂) (rank l₁) 
+        | ℕ-cmp (rank r₂ + s₁) (rank l₂)
+  ... | le _ | le _ | _    = node (s₁ + s₂) (p₁ , v₁) l₁ (merge r₁ (node s₂ (p₂ , v₂) l₂ r₂))
+  ... | le _ | gt _ | _    = node (s₁ + s₂) (p₁ , v₁) (merge r₁ (node s₂ (p₂ , v₂) l₂ r₂)) l₁
+  ... | gt _ | _    | le _ = node (s₁ + s₂) (p₂ , v₂) l₂ (merge r₂ (node s₁ (p₁ , v₁) l₁ r₁))
+  ... | gt _ | _    | gt _ = node (s₁ + s₂) (p₂ , v₂) (merge r₂ (node s₁ (p₁ , v₁) l₁ r₁)) l₂
+
+  singleton : Priorities × Value → Heap
+  singleton pv = node 1 pv empty empty
 
   MinHeapPriorityQueue : PriorityQueue Pr Value
-  MinHeapPriorityQueue = {!   !}
+  MinHeapPriorityQueue = record { 
+    priorityQueue = Heap ;
+    emp = empty ;
+    insert = λ h pv → merge h (singleton pv) ;
+    peek = peek-aux ;
+    pop = pop-aux ;
+    peek-emp = refl ;
+    pop-emp = refl ;
+    insert₁-peek = {!   !} ;
+    insert₁-pop = {!   !} ; 
+    insert₂-peek-p₁≤p₂ = {!   !} ;
+    insert₂-peek-p₂≤p₁ = {!   !} ;
+    insert₂-pop-p₁≤p₂ = {!   !} ;
+    insert₂-pop-p₂≤p₁ = {!   !} }
 
+    where
 
+      peek-aux : Heap → Maybe Value
+      peek-aux empty = nothing
+      peek-aux (node _ (p , v) _ _) = just v
 
-
-module Tests where 
-  -- -- Example: natural numbers are partially ordered
-  ℕ-partialOrd : PartialOrdering
-  ℕ-partialOrd = record { 
-    P = ℕ ; 
-    _≤ᵖ_ = _≤_ ; 
-    ≤ᵖ-refl = ≤-refl ; 
-    ≤ᵖ-antisym = ≤-antisym ;
-    ≤ᵖ-trans = ≤-trans }
-
-  -- -- Example: natural numbers are totally ordered
-  ℕ-totalOrd : TotalOrdering
-  ℕ-totalOrd = record { 
-    PartialOrd = ℕ-partialOrd ; 
-    ≤ᵖ-total = ≤-total }
-
-  module _ where   
-    open TotalOrdering ℕ-totalOrd
-    open import Data.Nat.Properties using (≤-pred; suc-injective)
-    
-    ℕ-priority : Priority
-    ℕ-priority = record { 
-      Ord = ℕ-totalOrd ; 
-      cmp = cmp-aux ; 
-      cmp' = cmp'-aux }
-      where
-        cmp-aux-suc : {p₁ p₂ : ℕ} → Order p₁ p₂ → Order (suc p₁) (suc p₂)
-        cmp-aux-suc (le x) = le (s≤s x)
-        cmp-aux-suc (gt x) = gt (λ ss → x (≤-pred ss))
-       
-        cmp-aux : (p₁ p₂ : ℕ) → Order p₁ p₂
-        cmp-aux zero p₂ = le z≤n
-        cmp-aux (suc p₁) zero = gt (λ ())
-        cmp-aux (suc p₁) (suc p₂) = cmp-aux-suc (cmp-aux p₁ p₂)
-        
-        cmp'-aux-suc : {p₁ p₂ : ℕ} → TriOrder p₁ p₂ → TriOrder (suc p₁) (suc p₂)
-        cmp'-aux-suc (a<b x x₁) = a<b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
-        cmp'-aux-suc (a=b x) = a=b (cong suc x)
-        cmp'-aux-suc (a>b x x₁) = a>b (s≤s x) (λ x₂ → x₁ (suc-injective x₂))
-
-        cmp'-aux : (p₁ p₂ : ℕ) → TriOrder p₁ p₂
-        cmp'-aux zero zero = a=b refl
-        cmp'-aux zero (suc p₂) = a<b z≤n (λ ())
-        cmp'-aux (suc p₁) zero = a>b z≤n (λ ())
-        cmp'-aux (suc p₁) (suc p₂) = cmp'-aux-suc (cmp'-aux p₁ p₂)
-
+      pop-aux : Heap → Heap
+      pop-aux empty = empty
+      pop-aux (node _ _ l r) = merge l r
