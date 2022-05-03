@@ -151,7 +151,7 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
     
-    
+-- Ordered list with lowest priority at front
 module ListPriorityQueueUnordered {l₁ l₂ : Level} 
                                   (Pr : Priority {l₁}) (Value : Set l₂) where
   
@@ -261,7 +261,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
 
   data Heap {i : Size} : Set (l₁ ⊔ l₂) where 
     empty : Heap
-    node  : {i₁ i₂ : Size< i} → Rank → Priorities × Value → (l : Heap {i₁}) → (r : Heap {i₂}) → Heap
+    node  : {i₁ i₂ : Size< i} → Rank → Priorities × Value 
+              → (l : Heap {i₁}) → (r : Heap {i₂}) → Heap
 
   rank : (h : Heap) → Rank
   rank empty = zero
@@ -279,20 +280,20 @@ module MinHeap {l₁ l₂ l₃ : Level}
   ... | gt _ | _    | le _ = node (s₁ + s₂) (p₂ , v₂) l₂ (merge r₂ (node s₁ (p₁ , v₁) l₁ r₁))
   ... | gt _ | _    | gt _ = node (s₁ + s₂) (p₂ , v₂) (merge r₂ (node s₁ (p₁ , v₁) l₁ r₁)) l₂
 
-  singleton : Priorities × Value → Heap
-  singleton pv = node 1 pv empty empty
+  singelton : Priorities × Value → Heap
+  singelton pv = node 1 pv empty empty
 
   MinHeapPriorityQueue : PriorityQueue Pr Value
   MinHeapPriorityQueue = record { 
     priorityQueue = Heap ;
     emp = empty ;
-    insert = λ h pv → merge h (singleton pv) ;
+    insert = λ h pv → merge h (singelton pv) ;
     peek = peek-aux ;
     pop = pop-aux ;
     peek-emp = refl ;
     pop-emp = refl ;
-    insert₁-peek = {!   !} ;
-    insert₁-pop = {!   !} ; 
+    insert₁-peek = insert₁-peek-aux ;
+    insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = {!   !} ;
     insert₂-peek-p₂≤p₁ = {!   !} ;
     insert₂-pop-p₁≤p₂ = {!   !} ;
@@ -307,3 +308,10 @@ module MinHeap {l₁ l₂ l₃ : Level}
       pop-aux : Heap → Heap
       pop-aux empty = empty
       pop-aux (node _ _ l r) = merge l r
+
+      insert₁-peek-aux : ((p , v) : Priorities × Value) →
+                         peek-aux (merge empty (singelton (p , v))) ≡ just v
+      insert₁-peek-aux (p , v) = refl
+
+      insert₁-pop-aux : (pv : Priorities × Value) → empty ≡ empty
+      insert₁-pop-aux x = refl
