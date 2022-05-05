@@ -22,10 +22,6 @@ open import Axiom.Extensionality.Propositional using (Extensionality)
 postulate fun-ext : ∀ {a b} → Extensionality a b
 
 
-data Dec {l : Level} (A : Set l) : Set l where
-  yes : A → Dec A
-  no  : (A → ⊥) → Dec A
-
 -- Non-strict partial order relation on a set A
 -- Note: all of this could have been imported from the standard library...
 -- https://agda.github.io/agda-stdlib/Relation.Binary.Bundles.html#6007
@@ -126,7 +122,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
 
   field 
     -- type of priorityQueue data (for storing priority-value pairs)
-    -- TODO: index heap with Rank information; then peek wouldn't need Maybe
     priorityQueue : Set l₃
     -- empty priorityQueue
     emp : priorityQueue
@@ -138,6 +133,7 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     pop : priorityQueue → priorityQueue
   
     -- behavioural properties
+    -- Note: instead of Maybe, we could have prevented peeking or popping emp using data types?
     peek-emp : peek emp ≡ nothing
     pop-emp : pop emp ≡ emp
     insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ just (p , v)
@@ -159,46 +155,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
 
-    --TODO po popu dobim ven value, ostali ap majo vsi višjo piroriteto
-    --TODO ko dam v eno vrsto elemtov pa vse ven poberem, je na tem seznamu eden izmed the elemntov
-    --TODO ko je elemnt dveh dreves v merge se nahaja pozneje v drvesu
-    --TODO element se nahaja v vrsti
-    --TODO ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
-    
-    -- insertₙ-peekₙ : (xs : List (Priorities × Value))
-    --               → Unique xs
-    --               → heap→list (list→heap xs) ≡ Sorted xs
-  
-  is-empty : (h : priorityQueue) → Dec (h ≡ emp)
-  is-empty h with peek h
-  ... | just x = no {!   !}
-  ... | nothing = yes {!   !}
-
-  peek-¬emp-≢-nothing : (h : priorityQueue) → (h ≢ emp) → peek h ≢ nothing
-  peek-¬emp-≢-nothing h p = {!   !}
-
-  -- peek-¬emp : {pv : Priorities × Value} 
-  --           → (h : priorityQueue) 
-  --           → (h ≢ emp) 
-  --           → peek h ≡ just pv
-  -- peek-¬emp h h≢emp with is-empty h | peek h
-  -- ... | yes h≡emp | _ = ⊥-elim (h≢emp h≡emp)
-  -- ... | no x | just pv' = {! pv'  !}
-  -- ... | no x | nothing = {!   !}
-
-  insertₙ : (xs : List (Priorities × Value)) → priorityQueue
-  insertₙ xs = foldl insert emp xs
-
-  peekₙ : priorityQueue → List (Priorities × Value)
-  -- peekₙ h with peek h 
-  -- ... | just pv = pv ∷ (peekₙ (pop h))
-  -- ... | nothing = []
-  peekₙ h with is-empty h
-  ... | yes _ = []
-  ... | no x = {! peek h ∷ (peekₙ (pop h)) !}
-
-
--- Ordered list with lowest priority at front
 module ListPriorityQueueUnordered {l₁ l₂ : Level} 
                                   (Pr : Priority {l₁}) (Value : Set l₂) where
   
@@ -293,15 +249,6 @@ module MinHeap {l₁ l₂ l₃ : Level}
 
     Rank : Set
     Rank = ℕ
-    
-    -- data HeapRanked : ℕ → Set (l₁ ⊔ l₂) where
-    --   empty : HeapRanked zero
-    --   node  : {r₁ r₂ : ℕ} 
-    --         → r₂ ≤ r₁ 
-    --         → Priorities × Value 
-    --         → HeapRanked r₁ 
-    --         → HeapRanked r₂ 
-    --         → HeapRanked (suc (r₁ + r₂))  
 
     data Heap {i : Size} : Set (l₁ ⊔ l₂) where 
       empty : Heap
