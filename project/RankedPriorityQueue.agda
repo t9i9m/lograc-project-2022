@@ -180,6 +180,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
     open Priority ℕ-priority renaming (cmp to ℕ-cmp; ≤ᵖ-total-lemma to ℕ-≤ᵖ-total-lemma)
 
     -- What follow are a bunch of trivial lemmas to assist Agda in being a proof assistant...
+    -- TODO: the lemmas could be shortened by finding common patterns...
+    
     lemma-i≡i+0 : {i : Rank} → i ≡ (i + zero)
     lemma-i≡i+0 {i} = sym (+-comm i zero)
 
@@ -341,20 +343,18 @@ module MinHeap {l₁ l₂ l₃ : Level}
     rank : {i : Rank} → Heap i → Rank
     rank {i} h = i
 
-    -- Note: we need to split on rank otherwise Agda fails termination checking?
-    -- I don't know how to give 'names' to stuff in { ... } so use the following to help:
-    -- n₁ = suc .(nₗ₁ + nᵣ₁)  -- size of left sub-heap
-    -- n₂ = suc .(nₗ₂ + nᵣ₂)  -- size of right sub-heap
     -- Note: subst is needed to help Agda
+    -- Note: Heap contains Size parameter because otherwise Agda complains about termination checking errors!
+    --       {_} are there to eat up Size
     merge : {i j : Size} → {n₁ n₂ : Rank} → (l : Heap {i} n₁) → (r : Heap {j} n₂) → Heap (n₁ + n₂)
-    merge {_} {_} {zero} {_} empty r = r
+    merge empty r = r
     merge {_} {_} {suc n₁} {zero} l empty = subst Heap (cong suc lemma-i≡i+0) l
-    merge {_} {_} {suc .(nₗ₁ + nᵣ₁)} {suc .(nₗ₂ + nᵣ₂)} 
+    merge {_} {_} {n₁} {n₂} 
       (node {_} {_} {nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) 
       (node {_} {_} {nₗ₂} {nᵣ₂} r₂≤l₂ (p₂ , v₂) l₂ r₂) 
         with cmp p₁ p₂ 
-        | ℕ-cmp (nᵣ₁ + suc (nₗ₂ + nᵣ₂)) nₗ₁ 
-        | ℕ-cmp (nᵣ₂ + suc (nₗ₁ + nᵣ₁)) nₗ₂
+        | ℕ-cmp (nᵣ₁ + n₂) nₗ₁ 
+        | ℕ-cmp (nᵣ₂ + n₁) nₗ₂
     ... | le p₁≤p₂ | le r₁+n₂≤n₁ | _ = subst 
       Heap 
       (lemma-1 nₗ₁ nᵣ₁ nₗ₂ nᵣ₂) 
@@ -376,90 +376,71 @@ module MinHeap {l₁ l₂ l₃ : Level}
       (lemma-4 nᵣ₂ nₗ₁ nᵣ₁ nₗ₂) 
       (node (ℕ-≤ᵖ-total-lemma r₂+n₁>l₂) (p₂ , v₂) 
         (merge r₂ (node r₁≤l₁ (p₁ , v₁) l₁ r₁)) l₂)
-
-    -- merge empty r = r
-    -- merge l empty = subst Heap lemma-i≡i+0 l
-    -- merge {n₁} {n₂} (node {nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) (node {nₗ₂} {nᵣ₂} r₂≤l₂ (p₂ , v₂) l₂ r₂)
-    --   with cmp p₁ p₂ 
-    --   | ℕ-cmp (nᵣ₁ + n₂) nₗ₁ 
-    --   | ℕ-cmp (nᵣ₂ + n₁) nₗ₂
-    -- ... | le p₁≤p₂ | le r₁+n₂≤n₁ | _ = subst Heap  -- subst is needed to help Agda
-    --                                         (lemma-1 nₗ₁ nᵣ₁ nₗ₂ nᵣ₂) 
-    --                                         (node r₁+n₂≤n₁ (p₁ , v₁) l₁ (merge r₁ (node r₂≤l₂ (p₂ , v₂) l₂ r₂)))
-    -- ... | le p₁≤p₂ | gt r₁+n₂>n₁ | _ = subst Heap  -- use ℕ-≤ᵖ-total-lemma to get n₁≤r₁+n₂ from r₁+n₂>n₁
-    --                                         (lemma-2 nᵣ₁ (nₗ₂ + nᵣ₂) nₗ₁)
-    --                                         (node (ℕ-≤ᵖ-total-lemma r₁+n₂>n₁) 
-    --                                               (p₁ , v₁) (merge r₁ (node r₂≤l₂ (p₂ , v₂) l₂ r₂)) l₁)
-    -- ... | gt p₁>p₂ | _ | le r₂+n₁≤l₂ = subst Heap 
-    --                                         {!   !} 
-    --                                         (node {! r₂+n₁≤l₂  !} (p₂ , v₂) l₂ (merge r₂ (node r₁≤l₁ (p₁ , v₁) l₁ r₁)))
-    -- ... | gt p₁>p₂ | _ | gt x = {!   !}
-
           
     singleton : Priorities × Value → Heap 1
     singleton pv = node z≤n pv empty empty
 
-  -- MinHeapPriorityQueue : PriorityQueue Pr Value   
-  -- MinHeapPriorityQueue = record { 
-  --   priorityQueue = λ n → Heap n ;
-  --   emp = empty ;
-  --   insert = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv))) ;
-  --   peek = peek-aux ;
-  --   pop = pop-aux ;
-  --   insert₁-peek = insert₁-peek-aux ;
-  --   insert₁-pop = insert₁-pop-aux ; 
-  --   insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
-  --   insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
-  --   insert₂-pop-p₁≤p₂ = {!   !} ;
-  --   -- insert₂-pop-p₁≤p₂-aux ;
-  --   insert₂-pop-p₂≤p₁ = {!   !} }
-  --   -- insert₂-pop-p₂≤p₁-aux }
+  MinHeapPriorityQueue : PriorityQueue Pr Value   
+  MinHeapPriorityQueue = record { 
+    priorityQueue = λ n → Heap n ;
+    emp = empty ;
+    insert = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv))) ;
+    peek = peek-aux ;
+    pop = pop-aux ;
+    insert₁-peek = insert₁-peek-aux ;
+    insert₁-pop = insert₁-pop-aux ; 
+    insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
+    insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
+    insert₂-pop-p₁≤p₂ = {!   !} ;
+    -- insert₂-pop-p₁≤p₂-aux ;
+    insert₂-pop-p₂≤p₁ = {!   !} }
+    -- insert₂-pop-p₂≤p₁-aux }
 
-  --   where
+    where
 
-  --     peek-aux : {n : Rank} → Heap (suc n) → Priorities × Value
-  --     peek-aux (node _ pv _ _) = pv
+      peek-aux : {n : Rank} → Heap (suc n) → Priorities × Value
+      peek-aux (node _ pv _ _) = pv
 
-  --     pop-aux : {n : Rank} → Heap (suc n) → Heap n
-  --     pop-aux (node _ _ l r) = merge l r
+      pop-aux : {n : Rank} → Heap (suc n) → Heap n
+      pop-aux (node _ _ l r) = merge l r
 
-  --     insert₁-peek-aux : ((p , v) : Priorities × Value) →
-  --                        peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
-  --     insert₁-peek-aux (p , v) = refl
+      insert₁-peek-aux : ((p , v) : Priorities × Value) →
+                         peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
+      insert₁-peek-aux (p , v) = refl
 
-  --     insert₁-pop-aux : (pv : Priorities × Value) → empty ≡ empty
-  --     insert₁-pop-aux x = refl
+      insert₁-pop-aux : (pv : Priorities × Value) → empty ≡ empty
+      insert₁-pop-aux x = refl
 
-  --     insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-  --                 → p₁ ≤ᵖ p₂
-  --                 → p₁ ≢ p₂
-  --                 → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
-  --     insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
-  --     ... | le _ = {! refl  !}
-  --     ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
+      insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₁ ≤ᵖ p₂
+                  → p₁ ≢ p₂
+                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
+      insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
+      ... | le _ = {! refl  !}
+      ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
 
-  --     insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-  --                 → p₂ ≤ᵖ p₁
-  --                 → p₁ ≢ p₂
-  --                 → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
-  --     insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
-  --     ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
-  --     ... | gt _ = {! refl  !}
+      insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₂ ≤ᵖ p₁
+                  → p₁ ≢ p₂
+                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
+      insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
+      ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
+      ... | gt _ = {! refl  !}
 
-  --     -- insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-  --     --             → p₁ ≤ᵖ p₂
-  --     --             → p₁ ≢ p₂
-  --     --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₂ , v₂) empty empty 
-  --     -- insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ = ?
-  --     -- with cmp p₁ p₂ 
-  --     -- ... | le p₁≤p₂ = refl
-  --     -- ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
+      -- insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+      --             → p₁ ≤ᵖ p₂
+      --             → p₁ ≢ p₂
+      --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₂ , v₂) empty empty 
+      -- insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ = ?
+      -- with cmp p₁ p₂ 
+      -- ... | le p₁≤p₂ = refl
+      -- ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
 
-  --     -- insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-  --     --             → p₂ ≤ᵖ p₁
-  --     --             → p₁ ≢ p₂
-  --     --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₁ , v₁) empty empty 
-  --     -- insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
-  --     -- ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
-  --     -- ... | gt _ = refl
+      -- insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+      --             → p₂ ≤ᵖ p₁
+      --             → p₁ ≢ p₂
+      --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₁ , v₁) empty empty 
+      -- insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
+      -- ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
+      -- ... | gt _ = refl
     
