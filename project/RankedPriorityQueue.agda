@@ -251,21 +251,30 @@ module MinHeap {l₁ l₂ l₃ : Level}
     lemma-2b : (a b c : Rank) → a + b + suc c ≡ suc (a + b + c)
     lemma-2b a b c = 
       begin
-        a + b + suc c ≡⟨ +-assoc a b (suc c) ⟩ 
+        a + b + suc c   ≡⟨ +-assoc a b (suc c) ⟩ 
         a + (b + suc c) ≡⟨ lemma-2a a b c ⟩ 
         suc (a + b + c) 
         ∎
 
     -- For merge case 2
-    lemma-2 : (a b+c d : Rank) → 
-              suc (a + suc b+c + d) ≡ suc (d + a + suc b+c)
-    lemma-2 a b+c d = cong suc 
-      (begin
-        a + suc b+c + d   ≡⟨ +-comm (a + suc b+c) d ⟩ 
-        d + (a + suc b+c) ≡⟨ lemma-2a d a b+c ⟩ 
-        suc (d + a + b+c) ≡⟨ sym (lemma-2b d a b+c) ⟩ 
-        d + a + suc b+c
+    lemma-2 : (a b c d : Rank) → 
+              suc (a + suc (b + c) + d) ≡ suc (d + a + suc (b + c))
+    lemma-2 a b c d = cong suc
+      (begin 
+        a + suc (b + c) + d ≡⟨ cong (_+ d) (lemma-1aa a b c) ⟩ 
+        suc (a + b + c) + d ≡⟨ +-comm (suc (a + b + c)) d ⟩ 
+        d + suc (a + b + c) ≡⟨ lemma-+-sucₙ d (a ∷ b ∷ c ∷ []) ⟩ 
+        suc (d + a + b + c) ≡⟨ cong suc (+-assoc (d + a) b c) ⟩ 
+        suc (d + a + (b + c)) ≡⟨ sym (lemma-2b d a (b + c)) ⟩ 
+        d + a + suc (b + c)
         ∎)
+        
+      -- (begin
+      --   a + suc b+c + d   ≡⟨ +-comm (a + suc b+c) d ⟩ 
+      --   d + (a + suc b+c) ≡⟨ lemma-2a d a b+c ⟩ 
+      --   suc (d + a + b+c) ≡⟨ sym (lemma-2b d a b+c) ⟩ 
+      --   d + a + suc b+c
+      --   ∎)
 
     lemma-3a : (a b c d : Rank) → a + b + c + d ≡ c + d + a + b
     lemma-3a a b c d = 
@@ -318,13 +327,15 @@ module MinHeap {l₁ l₂ l₃ : Level}
         b + c + suc (d + a)
         ∎)
 
-    data Heap : Rank → Set (l₁ ⊔ l₂) where
+    data Heap {i : Size} : Rank → Set (l₁ ⊔ l₂) where
       empty : Heap zero
-      node  : {r₁ r₂ : ℕ} 
+      node  : 
+            {i₁ i₂ : Size< i}
+            {r₁ r₂ : ℕ} 
             → r₂ ≤ r₁ 
             → Priorities × Value 
-            → Heap r₁ 
-            → Heap r₂ 
+            → Heap {i₁} r₁ 
+            → Heap {i₂} r₂ 
             → Heap (suc (r₁ + r₂)) 
             
     rank : {i : Rank} → Heap i → Rank
@@ -335,12 +346,12 @@ module MinHeap {l₁ l₂ l₃ : Level}
     -- n₁ = suc .(nₗ₁ + nᵣ₁)  -- size of left sub-heap
     -- n₂ = suc .(nₗ₂ + nᵣ₂)  -- size of right sub-heap
     -- Note: subst is needed to help Agda
-    merge : {n₁ n₂ : Rank} → (l : Heap n₁) → (r : Heap n₂) → Heap (n₁ + n₂)
-    merge {zero} {_} empty r = r
-    merge {suc n₁} {zero} l empty = subst Heap (cong suc lemma-i≡i+0) l
-    merge {suc .(nₗ₁ + nᵣ₁)} {suc .(nₗ₂ + nᵣ₂)} 
-      (node {nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) 
-      (node {nₗ₂} {nᵣ₂} r₂≤l₂ (p₂ , v₂) l₂ r₂) 
+    merge : {i j : Size} → {n₁ n₂ : Rank} → (l : Heap {i} n₁) → (r : Heap {j} n₂) → Heap (n₁ + n₂)
+    merge {_} {_} {zero} {_} empty r = r
+    merge {_} {_} {suc n₁} {zero} l empty = subst Heap (cong suc lemma-i≡i+0) l
+    merge {_} {_} {suc .(nₗ₁ + nᵣ₁)} {suc .(nₗ₂ + nᵣ₂)} 
+      (node {_} {_} {nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) 
+      (node {_} {_} {nₗ₂} {nᵣ₂} r₂≤l₂ (p₂ , v₂) l₂ r₂) 
         with cmp p₁ p₂ 
         | ℕ-cmp (nᵣ₁ + suc (nₗ₂ + nᵣ₂)) nₗ₁ 
         | ℕ-cmp (nᵣ₂ + suc (nₗ₁ + nᵣ₁)) nₗ₂
@@ -351,7 +362,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
         (merge r₁ (node r₂≤l₂ (p₂ , v₂) l₂ r₂)))
     ... | le p₁≤p₂ | gt r₁+n₂>n₁ | _ = subst 
       Heap  -- use ℕ-≤ᵖ-total-lemma to get n₁≤r₁+n₂ from r₁+n₂>n₁
-      (lemma-2 nᵣ₁ (nₗ₂ + nᵣ₂) nₗ₁)
+      -- (lemma-2 nᵣ₁ (nₗ₂ + nᵣ₂) nₗ₁)
+      (lemma-2 nᵣ₁ nₗ₂ nᵣ₂ nₗ₁)
       (node (ℕ-≤ᵖ-total-lemma r₁+n₂>n₁) (p₁ , v₁) 
         (merge r₁ (node r₂≤l₂ (p₂ , v₂) l₂ r₂)) l₁)
     ... | gt p₁>p₂ | _ | le r₂+n₁≤l₂ = subst 
@@ -450,4 +462,4 @@ module MinHeap {l₁ l₂ l₃ : Level}
   --     -- insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
   --     -- ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
   --     -- ... | gt _ = refl
- 
+    
