@@ -1,12 +1,14 @@
 module Ordering where 
 
 open import Level        renaming (zero to lzero; suc to lsuc)
-import Relation.Binary.PropositionalEquality as Eq
-open Eq                  using (_≡_; _≢_; refl; sym; trans; cong)
 open import Data.Sum     using (_⊎_)
-open import Relation.Nullary     using (¬_)
 open import Data.Nat     using (ℕ; zero; suc; _+_; _*_; _≤_; z≤n; s≤s; _<_)
 open import Data.Nat.Properties using (≤-refl; ≤-antisym; ≤-trans; ≤-total)
+open import Data.Empty   using (⊥; ⊥-elim)
+open import Relation.Nullary     using (¬_)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq                  using (_≡_; _≢_; refl; sym; trans; cong)
+
 
 -- Non-strict partial order relation on a set A
 -- Note: all of this could have been imported from the standard library...
@@ -32,6 +34,12 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
   field 
     -- strongly connected (total): either one or the other must be true
     ≤ᵖ-total : (p₁ p₂ : P) → (p₁ ≤ᵖ p₂) ⊎ (p₂ ≤ᵖ p₁)
+
+  -- a > b implies b ≤ a
+  ≤ᵖ-total-lemma : {a b : P} → ¬ (a ≤ᵖ b) → b ≤ᵖ a
+  ≤ᵖ-total-lemma {a} {b} a>b with ≤ᵖ-total a b
+  ... | _⊎_.inj₁ a≤b = ⊥-elim (a>b a≤b)
+  ... | _⊎_.inj₂ b≤a = b≤a
 
 -- If you uncomment the next two lines Agda complains... ?!?!
 -- module _ {l : Level} where
