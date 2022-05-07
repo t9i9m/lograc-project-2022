@@ -15,6 +15,7 @@ open import Data.Product using (Σ; _,_; proj₁; proj₂; Σ-syntax; _×_; curr
 open import Data.Sum     using (_⊎_; inj₁; inj₂; [_,_])
 open import Data.Unit    using (⊤; tt)
 open import Data.Vec     using (Vec; []; _∷_)
+open import Data.Vec.Relation.Unary.Unique.Setoid using (Unique)
 open import Function     using (id; _∘_)
 open import Relation.Nullary     using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
@@ -48,6 +49,10 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     peek : {n : Rank} → priorityQueue (suc n) → Priorities × Value
     -- pop element with priority
     pop : {n : Rank} → priorityQueue (suc n) → priorityQueue n
+    -- insert n≥1 elements
+    insertₙ : {n : Rank} → 1 ≤ n → (xs : Vec (Priorities × Value) n) → priorityQueue n
+    -- return ordered vector of all elements
+    priorityQueue→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
 
     -- behavioural properties
     insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ (p , v)
@@ -68,6 +73,9 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → p₂ ≤ᵖ p₁
                   → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
+    insertₙ-priorityQueue→vec : {n : Rank} → (p : 1 ≤ n) → (xs : {! Unique  !} (Vec (Priorities × Value) n)) -- Unique
+                  → priorityQueue→vec (insertₙ p xs) ≡ {!   !} -- Sorted xs
+    
 
 
     --TODO po popu dobim ven value, ostali ap majo vsi višjo piroriteto
@@ -75,17 +83,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     --TODO ko je elemnt dveh dreves v merge se nahaja pozneje v drvesu
     --TODO element se nahaja v vrsti
     --TODO ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
-    
-    -- insertₙ-peekₙ : (xs : List (Priorities × Value))
-    --               → Unique xs
-    --               → heap→list (list→heap xs) ≡ Sorted xs
-  
-  insertₙ : {n : ℕ} → (xs : Vec (Priorities × Value) n) → priorityQueue n
-  insertₙ xs = Data.Vec.foldl priorityQueue insert emp xs
-
-  heap→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
-  heap→vec {zero} h = []
-  heap→vec {suc n} h = peek h ∷ (heap→vec (pop h))
 
 
 module VecPriorityQueueUnordered {l₁ l₂ : Level} 
@@ -96,19 +93,25 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
 
   VecPriorityQueue : PriorityQueue Pr Value
   VecPriorityQueue = record { 
-    priorityQueue = λ n → Vec (Priorities × Value) n ;
+    priorityQueue = priorityQueue-aux ;
      emp = [] ;
      insert = insert-aux ;
      peek = peek-aux ;
      pop = pop-aux ;
+     insertₙ = insertₙ-aux ;
+     priorityQueue→vec = priorityQueue→vec-aux ;
      insert₁-peek = insert₁-peek-aux ;
      insert₁-pop = insert₁-pop-aux ; 
      insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
      insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
      insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
-     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
+     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
+     insertₙ-priorityQueue→vec = {!   !}}
      
     where 
+      priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
+      priorityQueue-aux = λ n → Vec (Priorities × Value) n
+
       insert-aux : {n : Rank} → Vec (Priorities × Value) n → Priorities × Value → Vec (Priorities × Value) (suc n)
       insert-aux xs pv = pv ∷ xs
 
@@ -125,6 +128,13 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       pop-aux ((p , v) ∷ x ∷ xs) | (p' , v') with cmp p p'
       pop-aux ((p , v) ∷ x ∷ xs) | p' , v' | le _ = (x ∷ xs)
       pop-aux ((p , v) ∷ x ∷ xs) | p' , v' | gt _ = (p , v) ∷ pop-aux (x ∷ xs)
+
+      insertₙ-aux : {n : Rank} → 1 ≤ n → Vec (Priorities × Value) n → Vec (Priorities × Value) n
+      insertₙ-aux (s≤s p) xs = Data.Vec.foldl priorityQueue-aux insert-aux [] xs
+
+      priorityQueue→vec-aux : {n : Rank} → Vec (Priorities × Value) n → Vec (Priorities × Value) n
+      priorityQueue→vec-aux [] = []
+      priorityQueue→vec-aux (x ∷ xs) = (peek-aux (x ∷ xs)) ∷ priorityQueue→vec-aux (pop-aux (x ∷ xs))
       
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
                          peek-aux (insert-aux [] (p , v)) ≡ (p , v)
@@ -382,19 +392,24 @@ module MinHeap {l₁ l₂ l₃ : Level}
 
   MinHeapPriorityQueue : PriorityQueue Pr Value   
   MinHeapPriorityQueue = record { 
-    priorityQueue = λ n → Heap n ;
+    priorityQueue = priorityQueue-aux ;
     emp = empty ;
-    insert = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv))) ;
+    insert = insert-aux;
     peek = peek-aux ;
     pop = pop-aux ;
+    insertₙ = insertₙ-aux ;
+    priorityQueue→vec = priorityQueue→vec-aux ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
-    insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
+    insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
+    insertₙ-priorityQueue→vec = {!   !}}
 
     where
+      priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
+      priorityQueue-aux = λ n → Heap n
 
       peek-aux : {n : Rank} → Heap (suc n) → Priorities × Value
       peek-aux (node _ pv _ _) = pv
@@ -402,11 +417,21 @@ module MinHeap {l₁ l₂ l₃ : Level}
       pop-aux : {n : Rank} → Heap (suc n) → Heap n
       pop-aux (node _ _ l r) = merge l r
 
+      insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
+      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
+
+      insertₙ-aux : {n : Rank} → 1 ≤ n → Vec (Priorities × Value) n → Heap n
+      insertₙ-aux (s≤s p) xs = Data.Vec.foldl priorityQueue-aux insert-aux empty xs
+
+      priorityQueue→vec-aux : {n : Rank} → Heap n → Vec (Priorities × Value) n
+      priorityQueue→vec-aux empty = []
+      priorityQueue→vec-aux (node x x₁ h h₁) = peek-aux (node x x₁ h h₁) ∷ (priorityQueue→vec-aux (pop-aux (node x x₁ h h₁)))
+
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
                          peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
       insert₁-peek-aux (p , v) = refl
 
-      insert₁-pop-aux : (pv : Priorities × Value) → empty ≡ empty
+      insert₁-pop-aux : (pv : Priorities × Value) → pop-aux (insert-aux empty pv) ≡ empty
       insert₁-pop-aux x = refl
 
       insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
