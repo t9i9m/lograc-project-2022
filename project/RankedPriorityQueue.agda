@@ -391,10 +391,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
-    insert₂-pop-p₁≤p₂ = {!   !} ;
-    -- insert₂-pop-p₁≤p₂-aux ;
-    insert₂-pop-p₂≤p₁ = {!   !} }
-    -- insert₂-pop-p₂≤p₁-aux }
+    insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
+    insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux }
 
     where
 
@@ -416,7 +414,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
                   → p₁ ≢ p₂
                   → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
       insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
-      ... | le _ = {! refl  !}
+      ... | le _ = refl
       ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
 
       insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
@@ -425,22 +423,21 @@ module MinHeap {l₁ l₂ l₃ : Level}
                   → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
       insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
-      ... | gt _ = {! refl  !}
+      ... | gt _ = refl
 
-      -- insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-      --             → p₁ ≤ᵖ p₂
-      --             → p₁ ≢ p₂
-      --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₂ , v₂) empty empty 
-      -- insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ = ?
-      -- with cmp p₁ p₂ 
-      -- ... | le p₁≤p₂ = refl
-      -- ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
+      insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₁ ≤ᵖ p₂
+                  → p₁ ≢ p₂
+                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
+      insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
+      ... | le p₁≤p₂ = refl
+      ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
 
-      -- insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
-      --             → p₂ ≤ᵖ p₁
-      --             → p₁ ≢ p₂
-      --             → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ node 1 (p₁ , v₁) empty empty 
-      -- insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
-      -- ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
-      -- ... | gt _ = refl
+      insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+                  → p₂ ≤ᵖ p₁
+                  → p₁ ≢ p₂
+                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
+      insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
+      ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
+      ... | gt _ = refl
     
