@@ -41,6 +41,12 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
   ... | _⊎_.inj₁ a≤b = ⊥-elim (a>b a≤b)
   ... | _⊎_.inj₂ b≤a = b≤a
 
+  ≤ᵖ-proj₁ : {a b : P} → a ≤ᵖ b → P
+  ≤ᵖ-proj₁ {a} {b} p = a
+
+  ≤ᵖ-proj₂ : {a b : P} → a ≤ᵖ b → P
+  ≤ᵖ-proj₂ {a} {b} p = b
+
 -- If you uncomment the next two lines Agda complains... ?!?!
 -- module _ {l : Level} where
 --   open TotalOrdering {l}
