@@ -55,6 +55,7 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     pop : {n : Rank} → priorityQueue (suc n) → priorityQueue n
   
     -- contains : {n : Rank} → priorityQueue n → Priorities × Value → Bool
+    _∈-priorityQueue_ : {n : Rank} → (pv : Priorities × Value) → priorityQueue n → Set l₃
 
   -- Helper functions
   peekp : {n : Rank} → priorityQueue (suc n) → Priorities
@@ -95,10 +96,10 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     pop-≤ : {n : Rank} → (h : priorityQueue (suc (suc n)))
           → peekp h ≤ᵖ (peekp (pop h))
 
-    -- insert-∈ : {n : Rank} → (h : priorityQueue n)
-    --          → (pv : Priorities × Value) 
-    --         --  → pv ∈ (insert h pv)
-    --         → contains (insert h pv) pv ≡ true
+    insert-∈ : {n : Rank} → (h : priorityQueue n)
+             → (pv : Priorities × Value) 
+             → pv ∈-priorityQueue (insert h pv)
+            -- → contains (insert h pv) pv ≡ true
 
     -- insert-∈-vec : {n : Rank} → (h : priorityQueue n)
     --              → (pv : Priorities × Value)
@@ -122,6 +123,10 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
   open Priority Pr renaming (P to Priorities)
   open PriorityQueue
 
+  data _∈_ {n : Rank} (pv : Priorities × Value) : Vec (Priorities × Value) n → Set (l₁ ⊔ l₂) where
+    ∈-here  : (h : Vec (Priorities × Value) n) → pv ∈ h
+    ∈-there : (h : Vec (Priorities × Value) (suc n)) → pv ∈ (tail h)
+
   VecPriorityQueue : PriorityQueue Pr Value
   VecPriorityQueue = record { 
     priorityQueue = priorityQueue-aux ;
@@ -129,13 +134,15 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
      insert = insert-aux ;
      peek = peek-aux ;
      pop = pop-aux ;
+     _∈-priorityQueue_ = _∈_ ;
      insert₁-peek = insert₁-peek-aux ;
      insert₁-pop = insert₁-pop-aux ; 
      insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
      insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
      insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
      insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
-     pop-≤ = pop-≤-aux}
+     pop-≤ = pop-≤-aux ; 
+     insert-∈ = insert-∈-aux}
      
     where 
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -264,6 +271,10 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       pop-≤-aux {suc n} ((p₀ , v₀) ∷ hs) | p₁≤p₂ | gt p₀>p₁ | le p₀≤p₂ | q = subst (proj₁ (peek-aux hs) ≤ᵖ_) (sym q) (≤ᵖ-total-lemma p₀>p₁)
       pop-≤-aux {suc n} ((p₀ , v₀) ∷ hs) | p₁≤p₂ | gt p₀>p₁ | gt p₀>p₂ | q = subst ((proj₁ (peek-aux hs) ≤ᵖ_)) (sym q) p₁≤p₂
 
+      insert-∈-aux : {n : Rank} (h : priorityQueue-aux n)
+                   → (pv : Priorities × Value) 
+                   → pv ∈ insert-aux h pv
+      insert-∈-aux h pv = ∈-here (insert-aux h pv)
 
 -- Weight biased leftist heap
 module MinHeap {l₁ l₂ l₃ : Level} 
@@ -437,10 +448,13 @@ module MinHeap {l₁ l₂ l₃ : Level}
             → Priorities × Value 
             → Heap {i₁} r₁ 
             → Heap {i₂} r₂ 
+            -- TODO new variable r₁ + r₂
             → Heap (suc (r₁ + r₂)) 
             
     rank : {i : Rank} → Heap i → Rank
     rank {i} h = i
+
+    -- TODO: remove sized types, check ranks {n₁,...}
 
     -- Note: subst is needed to help Agda
     -- Note: Heap contains Size parameter because otherwise Agda complains about termination checking errors!
@@ -486,13 +500,15 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert = insert-aux;
     peek = peek-aux ;
     pop = pop-aux ;
+    _∈-priorityQueue_ = {!   !} ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
-    pop-≤ = {!   !} }
+    pop-≤ = {!   !} ; 
+    insert-∈ = {!   !}}
 
     where
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -546,8 +562,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
     
-      pop-≤-aux : {nₗ₁ : Rank} {nᵣ₁ : Rank} {n : Rank} (h : priorityQueue-aux (suc (suc n))) 
+      pop-≤-aux : {n : Rank} (h : priorityQueue-aux (suc (suc n))) 
                   → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
       -- pop-≤-aux (node {_} {_} {suc nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) = {! h  !}
-      pop-≤-aux h = {!   !}
+      pop-≤-aux {n} h = {! h !}
   
