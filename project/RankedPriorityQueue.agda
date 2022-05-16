@@ -501,6 +501,11 @@ module MinHeap {l₁ l₂ l₃ : Level}
     singleton : Priorities × Value → Heap 1
     singleton pv = node z≤n refl pv empty empty
 
+    data _∈_ {n : Rank} (pv : Priorities × Value) : Heap n → Set (l₁ ⊔ l₂) where
+       ∈-here  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) → pv ∈ node proof₁ proof₂ pv l r
+       ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv₂ ∈ l → pv ∈ node proof₁ proof₂ pv₂ l r
+       ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv₂ ∈ r → pv ∈ node proof₁ proof₂ pv₂ l r
+
   MinHeapPriorityQueue : PriorityQueue Pr Value   
   MinHeapPriorityQueue = record { 
     priorityQueue = priorityQueue-aux ;
@@ -508,7 +513,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert = insert-aux;
     peek = peek-aux ;
     pop = pop-aux ;
-    _∈-priorityQueue_ = {!   !} ;
+    _∈-priorityQueue_ = _∈_ ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
@@ -516,7 +521,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
     pop-≤ = {!   !} ; 
-    insert-∈ = {!   !}}
+    insert-∈ = insert-∈-aux}
 
     where
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -526,13 +531,13 @@ module MinHeap {l₁ l₂ l₃ : Level}
       peek-aux (node _ _ pv _ _) = pv
 
       pop-aux : {n : Rank} → Heap (suc n) → Heap n
-      pop-aux (node _ p _ l r) = subst Heap (suc-injective (sym p)) (merge l r) -- merge l r
+      pop-aux (node _ p _ l r) = subst Heap (suc-injective (sym p)) (merge  l r)
 
       insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
-      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
+      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge  h (singleton pv)))
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
-                         peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
+                         peek-aux (merge  empty (singleton (p , v))) ≡ (p , v)
       insert₁-peek-aux (p , v) = refl
 
       insert₁-pop-aux : (pv : Priorities × Value) → pop-aux (insert-aux empty pv) ≡ empty
@@ -541,7 +546,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
                   → p₁ ≢ p₂
-                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
+                  → peek-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
       insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
       ... | le _ = refl
       ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
@@ -549,7 +554,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
                   → p₁ ≢ p₂
-                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
+                  → peek-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
       insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
@@ -557,7 +562,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
                   → p₁ ≢ p₂
-                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
+                  → pop-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
       insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = refl
       ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
@@ -565,12 +570,18 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
                   → p₁ ≢ p₂
-                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
+                  → pop-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
       insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
-    
-      pop-≤-aux : {n : Rank} (h : priorityQueue-aux (suc (suc n))) 
-                  → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
-      -- pop-≤-aux (node {_} {_} {suc nₗ₁} {nᵣ₁} r₁≤l₁ (p₁ , v₁) l₁ r₁) = {! h  !}
-      pop-≤-aux {n} (node nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !}
+
+
+      insert-∈-aux : {n : Rank} (h : priorityQueue-aux n)
+                   → (pv : Priorities × Value) 
+                   → pv ∈ insert-aux h pv
+      insert-∈-aux empty pv = ∈-here empty empty z≤n refl
+      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) with cmp' p pₙ
+      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a<b x x₁ = {!   !}
+      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a=b p≡pₙ = {!   !}  --how to compare values ??
+      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a>b x x₁ = {!   !}
+   
