@@ -464,19 +464,43 @@ module MinHeap {l₁ l₂ l₃ : Level}
         suc (b + (c + a)) ≡⟨ cong suc (+-comm b (c + a)) ⟩ 
         suc (c + a + b) ∎
 
-    data Heap {i : Size} : Rank → Set (l₁ ⊔ l₂) where
-      empty : Heap zero
-      node  : {i₁ i₂ : Size< i}
+    lemma-e : (a b c d : Rank) → suc (a + b) ≡ d → suc (a + b + c) ≡ d + c
+    lemma-e a b c .(suc (a + b)) refl = refl
+
+    lemma-f : (a b c d : Rank) → suc (a + b) ≡ d → c + suc (a + b) ≡ c + d
+    lemma-f a b c .(suc (a + b)) refl = refl
+
+    data Heap : {i : Size} → Rank → Set (l₁ ⊔ l₂) where
+      empty : {i : Size} → Heap {↑ i} zero
+      node  : {i : Size}
             {nₗ nᵣ n : ℕ} 
             → nᵣ ≤ nₗ 
             → n ≡ suc (nₗ + nᵣ)
             → Priorities × Value 
-            → Heap {i₁} nₗ 
-            → Heap {i₂} nᵣ 
-            → Heap {i} n 
+            → Heap {i} nₗ 
+            → Heap {i} nᵣ 
+            → Heap {↑ i} n 
             
     rank : {i : Rank} → Heap i → Rank
     rank {i} h = i
+
+    -- data Heap2 : Set (l₁ ⊔ l₂) where
+    --   empty : Heap2
+    --   node  : Priorities × Value 
+    --         → Heap2
+    --         → Heap2 
+    --         → Heap2
+            
+    -- merge2 : (l : Heap2) → (r : Heap2) → Heap2
+    -- merge2 empty empty = empty
+    -- merge2 empty (node x r r₁) = node x r r₁
+    -- merge2 (node x l l₁) empty = node x l l₁
+    -- merge2
+    --   (node (p₁ , v₁) ll lr)
+    --   (node (p₂ , v₂) rl rr)
+    --     with cmp p₁ p₂
+    -- ... | le x = node (p₁ , v₁) ll (merge2 lr (node (p₂ , v₂) rl rr))
+    -- ... | gt x = node (p₂ , v₂) rl (merge2 (node (p₁ , v₁) ll lr) rr)
 
     -- TODO: remove sized types, check ranks {n₁,...}
 
@@ -487,15 +511,15 @@ module MinHeap {l₁ l₂ l₃ : Level}
     merge empty r = r
     merge {_} {_} {suc nₗ} {zero} l empty = subst Heap (cong suc lemma-i≡i+0) l
     merge {_} {_} {nₗ} {nᵣ} 
-      (node {_} {_} {nₗₗ} {nₗᵣ} {nₗ} nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₁ , v₁) ll lr) 
-      (node {_} {_} {nᵣₗ} {nᵣᵣ} {nᵣ} nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ (p₂ , v₂) rl rr)
+      (node {_} {nₗₗ} {nₗᵣ} {nₗ} nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₁ , v₁) ll lr) 
+      (node {_} {nᵣₗ} {nᵣᵣ} {nᵣ} nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ (p₂ , v₂) rl rr)
         with cmp p₁ p₂ 
           | ℕ-cmp (nₗᵣ + nᵣ) nₗₗ 
           | ℕ-cmp (nᵣᵣ + nₗ) nᵣₗ
-    ... | le p₁≤p₂ | le nₗᵣ+nᵣ≤nₗ | _ rewrite nₗ≡1+nₗₗ+nₗᵣ = node nₗᵣ+nᵣ≤nₗ (cong suc (lemma-a nₗₗ nₗᵣ nᵣ)) ((p₁ , v₁)) ll (merge lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ ((p₂ , v₂)) rl rr))
-    ... | le p₁≤p₂ | gt nₗᵣ+nᵣ>nₗ | _ rewrite nₗ≡1+nₗₗ+nₗᵣ = node (ℕ-≤ᵖ-total-lemma nₗᵣ+nᵣ>nₗ) (cong suc (lemma-b nₗₗ nₗᵣ nᵣ)) ((p₁ , v₁)) ((merge lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ ((p₂ , v₂)) rl rr))) ll
-    ... | gt p₁>p₂ | _ | le n₂₂+nₗ≤nᵣₗ rewrite nᵣ≡1+nᵣₗ+nᵣᵣ = node n₂₂+nₗ≤nᵣₗ (lemma-c nₗ nᵣₗ nᵣᵣ) ((p₂ , v₂)) rl (merge rr (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ ((p₁ , v₁)) ll lr))
-    ... | gt p₁>p₂ | _ | gt n₂₂+nₗ>nᵣₗ rewrite nᵣ≡1+nᵣₗ+nᵣᵣ = node (ℕ-≤ᵖ-total-lemma n₂₂+nₗ>nᵣₗ) (lemma-d nₗ nᵣₗ nᵣᵣ) ((p₂ , v₂)) ((merge rr (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ ((p₁ , v₁)) ll lr))) rl
+    ... | le p₁≤p₂ | le nₗᵣ+nᵣ≤nₗ | _ = subst Heap (lemma-e nₗₗ nₗᵣ nᵣ nₗ (sym nₗ≡1+nₗₗ+nₗᵣ)) (node nₗᵣ+nᵣ≤nₗ (cong suc (lemma-a nₗₗ nₗᵣ nᵣ)) ((p₁ , v₁)) ll (merge lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ ((p₂ , v₂)) rl rr)))
+    ... | le p₁≤p₂ | gt nₗᵣ+nᵣ>nₗ | _ = subst Heap (lemma-e nₗₗ nₗᵣ nᵣ nₗ (sym nₗ≡1+nₗₗ+nₗᵣ)) (node (ℕ-≤ᵖ-total-lemma nₗᵣ+nᵣ>nₗ) (cong suc (lemma-b nₗₗ nₗᵣ nᵣ)) ((p₁ , v₁)) ((merge lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ ((p₂ , v₂)) rl rr))) ll)
+    ... | gt p₁>p₂ | _ | le n₂₂+nₗ≤nᵣₗ = subst Heap (lemma-f nᵣₗ nᵣᵣ nₗ nᵣ (sym nᵣ≡1+nᵣₗ+nᵣᵣ)) (node n₂₂+nₗ≤nᵣₗ (lemma-c nₗ nᵣₗ nᵣᵣ) ((p₂ , v₂)) rl (merge rr (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ ((p₁ , v₁)) ll lr)))
+    ... | gt p₁>p₂ | _ | gt n₂₂+nₗ>nᵣₗ = subst Heap (lemma-f nᵣₗ nᵣᵣ nₗ nᵣ (sym nᵣ≡1+nᵣₗ+nᵣᵣ)) (node (ℕ-≤ᵖ-total-lemma n₂₂+nₗ>nᵣₗ) (lemma-d nₗ nᵣₗ nᵣᵣ) ((p₂ , v₂)) ((merge rr (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ ((p₁ , v₁)) ll lr))) rl)
           
     singleton : Priorities × Value → Heap 1
     singleton pv = node z≤n refl pv empty empty
@@ -530,14 +554,13 @@ module MinHeap {l₁ l₂ l₃ : Level}
       peek-aux (node _ _ pv _ _) = pv
 
       pop-aux : {n : Rank} → Heap (suc n) → Heap n
-      pop-aux (node _ p _ l r) = {! merge l r  !}
-      --subst Heap (suc-injective (sym p)) (merge  l r)
+      pop-aux (node _ p _ l r) = subst Heap (suc-injective (sym p)) (merge l r)
 
       insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
-      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge  h (singleton pv)))
+      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
-                         peek-aux (merge  empty (singleton (p , v))) ≡ (p , v)
+                         peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
       insert₁-peek-aux (p , v) = refl
 
       insert₁-pop-aux : (pv : Priorities × Value) → pop-aux (insert-aux empty pv) ≡ empty
@@ -546,7 +569,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
                   → p₁ ≢ p₂
-                  → peek-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
+                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
       insert₂-peek-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
       ... | le _ = refl
       ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
@@ -554,7 +577,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
                   → p₁ ≢ p₂
-                  → peek-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
+                  → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
       insert₂-peek-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
@@ -562,7 +585,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₁ ≤ᵖ p₂
                   → p₁ ≢ p₂
-                  → pop-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
+                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
       insert₂-pop-p₁≤p₂-aux (p₁ , v₁) (p₂ , v₂) p₁≤p₂ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = refl
       ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
@@ -570,7 +593,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
                   → p₂ ≤ᵖ p₁
                   → p₁ ≢ p₂
-                  → pop-aux (merge  (merge  empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
+                  → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
       insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
@@ -582,28 +605,35 @@ module MinHeap {l₁ l₂ l₃ : Level}
       1+n≰0 ()
 
       peek-aux-l : {n : Rank} → Heap (suc (suc n)) → Priorities × Value
-      peek-aux-l {n} (node {_} {_} {zero} {zero} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ _ l _) = ⊥-elim (0≢1+n (suc-injective (sym n≡1+nₗ+nᵣ) ))
-      peek-aux-l {n} (node {_} {_} {zero} {suc nᵣ} {.(suc (suc n))} nᵣ≤nₗ _ _ l _) = ⊥-elim (1+n≰0 nᵣ≤nₗ)
-      peek-aux-l {n} (node {_} {_} {suc nₗ} {nᵣ} {.(suc (suc n))} _ _ _ l _) = peek-aux l
+      peek-aux-l {n} (node {_} {zero} {zero} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ _ l _) = ⊥-elim (0≢1+n (suc-injective (sym n≡1+nₗ+nᵣ) ))
+      peek-aux-l {n} (node {_} {zero} {suc nᵣ} {.(suc (suc n))} nᵣ≤nₗ _ _ l _) = ⊥-elim (1+n≰0 nᵣ≤nₗ)
+      peek-aux-l {n} (node {_} {suc nₗ} {nᵣ} {.(suc (suc n))} _ _ _ l _) = peek-aux l
+
+      -- mergeless : {nₗ nᵣ : Rank} → (l : Heap (suc nₗ)) → (r : Heap (suc nᵣ)) 
+      --             → proj₁ (peek-aux (merge l r)) ≤ᵖ proj₁ (peek-aux-l (merge l r))
+      -- mergeless a b = ?
 
       --peek-aux-r : {n : Rank} → Heap (suc (suc (suc n))) → Priorities × Value
       --peek-aux-r (node _ _ _ _ r) = peek-aux r
 
-      pop-≤-auxl : {n : Rank} (h : priorityQueue-aux (suc (suc n)))
+      pop-≤-auxl : {n : Rank} (h : Heap (suc (suc n)))
                   → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux-l h)
-      pop-≤-auxl {n} (node {_} {_} {nₗ} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !}
+      pop-≤-auxl {n} (node {_} {.zero} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) empty r) = {!   !}
+      pop-≤-auxl {n} (node {_} {nₗ} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (pₗ , vₗ) ll lr) r) with cmp p₁ (proj₁ (peek-aux-l (node nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (pₗ , vₗ) ll lr) r)))
+      pop-≤-auxl {n} (node {.∞} {nₗ} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (pₗ , vₗ) ll lr) r) | le x = {!   !}
+      pop-≤-auxl {n} (node {.∞} {nₗ} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (pₗ , vₗ) ll lr) r) | gt x = {!   !}
 
       pop-≤-aux : {n : Rank} (h : Heap (suc (suc n))) 
                   → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
-      pop-≤-aux {zero} (node {_} {_} {suc zero} {zero} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node {_} {_} {zero} {zero} {.1} nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty) = {! pop-≤-auxl {zero} (node nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty)  !} --2 nodes
-      pop-≤-aux {zero} (node {_} {_} {suc nₗ} {suc nᵣ} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (0≢1+n (suc-injective (suc-injective (subst (λ x → 2 ≡ suc (suc x)) (+-suc nₗ nᵣ) n≡1+nₗ+nᵣ))))
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) with pop-≤-aux l
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) | pₗ≤pₗₙ = {!   !} --right empty
-      pop-≤-aux {suc zero} (node {_} {_} {suc zero} {suc zero} {.3} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !} -- 3 nodes
-      pop-≤-aux {suc n} (node {_} {_} {suc zero} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (1+1+n≰1 nᵣ≤nₗ)
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l 
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) | pₗ≤pₗₙ = {!   !} --right 1 node
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l | pop-≤-aux r
-      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r)
+      pop-≤-aux {zero} (node {_} {suc zero} {zero} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node {_} {zero} {zero} {.1} nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty) = {! pop-≤-auxl {zero} (node nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty)  !} --2 nodes
+      pop-≤-aux {zero} (node {_} {suc nₗ} {suc nᵣ} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (0≢1+n (suc-injective (suc-injective (subst (λ x → 2 ≡ suc (suc x)) (+-suc nₗ nᵣ) n≡1+nₗ+nᵣ))))
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) with pop-≤-aux l
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) | pₗ≤pₗₙ = {!   !} --right empty
+      pop-≤-aux {suc zero} (node {_} {suc zero} {suc zero} {.3} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !} -- 3 nodes
+      pop-≤-aux {suc n} (node {_} {suc zero} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (1+1+n≰1 nᵣ≤nₗ)
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l 
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) | pₗ≤pₗₙ = {!   !} --right 1 node
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l | pop-≤-aux r
+      pop-≤-aux {suc n} (node {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r)
         | pₗ≤pₗₙ | pᵣ≤pᵣₙ = {!   !} --both subtrees with property
-   
+     
