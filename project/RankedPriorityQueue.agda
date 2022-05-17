@@ -11,8 +11,8 @@ open import Size
 open import Data.Empty   using (⊥; ⊥-elim)
 open import Data.List    using (List; []; _∷_; length)
 open import Data.Maybe   using (Maybe; nothing; just)
-open import Data.Nat     using (ℕ; zero; suc; _+_; _*_; _≤_; z≤n; s≤s; _<_)
-open import Data.Nat.Properties using (≤-refl; ≤-antisym; ≤-trans; ≤-total; suc-injective)
+open import Data.Nat     using (ℕ; zero; suc; _+_; _*_; _≤_; z≤n; s≤s; _<_; _≰_)
+open import Data.Nat.Properties using (≤-refl; ≤-antisym; ≤-trans; ≤-total; suc-injective; +-comm; +-assoc; +-suc; 0≢1+n)
 open import Data.Product using (Σ; _,_; proj₁; proj₂; Σ-syntax; _×_; curry; uncurry)
 open import Data.Sum     using (_⊎_; inj₁; inj₂; [_,_])
 open import Data.Unit    using (⊤; tt)
@@ -284,7 +284,6 @@ module MinHeap {l₁ l₂ l₃ : Level}
   open PriorityQueue      
 
   module _ where 
-    open Data.Nat.Properties using (+-comm; +-assoc; +-suc)
     open Data.List using (foldl; foldr)
     open ℕ-ordering using (ℕ-priority)
     open Priority ℕ-priority renaming (cmp to ℕ-cmp; ≤ᵖ-total-lemma to ℕ-≤ᵖ-total-lemma)
@@ -503,8 +502,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
 
     data _∈_ {n : Rank} (pv : Priorities × Value) : Heap n → Set (l₁ ⊔ l₂) where
        ∈-here  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) → pv ∈ node proof₁ proof₂ pv l r
-       ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv₂ ∈ l → pv ∈ node proof₁ proof₂ pv₂ l r
-       ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv₂ ∈ r → pv ∈ node proof₁ proof₂ pv₂ l r
+       ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ l → pv ∈ node proof₁ proof₂ pv₂ l r
+       ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ r → pv ∈ node proof₁ proof₂ pv₂ l r
 
   MinHeapPriorityQueue : PriorityQueue Pr Value   
   MinHeapPriorityQueue = record { 
@@ -521,7 +520,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
     pop-≤ = {!   !} ; 
-    insert-∈ = insert-∈-aux}
+    insert-∈ = {!   !}}
 
     where
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -531,7 +530,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
       peek-aux (node _ _ pv _ _) = pv
 
       pop-aux : {n : Rank} → Heap (suc n) → Heap n
-      pop-aux (node _ p _ l r) = subst Heap (suc-injective (sym p)) (merge  l r)
+      pop-aux (node _ p _ l r) = {! merge l r  !}
+      --subst Heap (suc-injective (sym p)) (merge  l r)
 
       insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
       insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge  h (singleton pv)))
@@ -575,13 +575,35 @@ module MinHeap {l₁ l₂ l₃ : Level}
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
 
+      1+1+n≰1 : ∀ {n} → (1 + 1 + n) ≰ 1
+      1+1+n≰1 (s≤s ())
 
-      insert-∈-aux : {n : Rank} (h : priorityQueue-aux n)
-                   → (pv : Priorities × Value) 
-                   → pv ∈ insert-aux h pv
-      insert-∈-aux empty pv = ∈-here empty empty z≤n refl
-      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) with cmp' p pₙ
-      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a<b x x₁ = {!   !}
-      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a=b p≡pₙ = {!   !}  --how to compare values ??
-      insert-∈-aux (node proof₁ proof₂ (pₙ , vₙ) h h₁) (p , v) | a>b x x₁ = {!   !}
+      1+n≰0 : ∀ {n} → 1 + n ≰ 0
+      1+n≰0 ()
+
+      peek-aux-l : {n : Rank} → Heap (suc (suc n)) → Priorities × Value
+      peek-aux-l {n} (node {_} {_} {zero} {zero} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ _ l _) = ⊥-elim (0≢1+n (suc-injective (sym n≡1+nₗ+nᵣ) ))
+      peek-aux-l {n} (node {_} {_} {zero} {suc nᵣ} {.(suc (suc n))} nᵣ≤nₗ _ _ l _) = ⊥-elim (1+n≰0 nᵣ≤nₗ)
+      peek-aux-l {n} (node {_} {_} {suc nₗ} {nᵣ} {.(suc (suc n))} _ _ _ l _) = peek-aux l
+
+      --peek-aux-r : {n : Rank} → Heap (suc (suc (suc n))) → Priorities × Value
+      --peek-aux-r (node _ _ _ _ r) = peek-aux r
+
+      pop-≤-auxl : {n : Rank} (h : priorityQueue-aux (suc (suc n)))
+                  → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux-l h)
+      pop-≤-auxl {n} (node {_} {_} {nₗ} {nᵣ} {.(suc (suc n))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !}
+
+      pop-≤-aux : {n : Rank} (h : Heap (suc (suc n))) 
+                  → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
+      pop-≤-aux {zero} (node {_} {_} {suc zero} {zero} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node {_} {_} {zero} {zero} {.1} nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty) = {! pop-≤-auxl {zero} (node nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₂ , v₂) empty empty) empty)  !} --2 nodes
+      pop-≤-aux {zero} (node {_} {_} {suc nₗ} {suc nᵣ} {.2} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (0≢1+n (suc-injective (suc-injective (subst (λ x → 2 ≡ suc (suc x)) (+-suc nₗ nᵣ) n≡1+nₗ+nᵣ))))
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) with pop-≤-aux l
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l empty) | pₗ≤pₗₙ = {!   !} --right empty
+      pop-≤-aux {suc zero} (node {_} {_} {suc zero} {suc zero} {.3} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = {!   !} -- 3 nodes
+      pop-≤-aux {suc n} (node {_} {_} {suc zero} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) = ⊥-elim (1+1+n≰1 nᵣ≤nₗ)
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l 
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc zero} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) | pₗ≤pₗₙ = {!   !} --right 1 node
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r) with pop-≤-aux l | pop-≤-aux r
+      pop-≤-aux {suc n} (node {_} {_} {suc (suc nₗ)} {suc (suc nᵣ)} {.(suc (suc (suc n)))} nᵣ≤nₗ n≡1+nₗ+nᵣ (p₁ , v₁) l r)
+        | pₗ≤pₗₙ | pᵣ≤pᵣₙ = {!   !} --both subtrees with property
    
