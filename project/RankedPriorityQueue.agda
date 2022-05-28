@@ -20,7 +20,7 @@ open import Axiom.Extensionality.Propositional using (Extensionality)
 postulate fun-ext : ∀ {a b} → Extensionality a b
 
 
--- Rank denotes the size of a priority queue, i.e. its just a natural number.
+-- Rank denotes the size of a priority queue, i.e. it's just a natural number.
 Rank : Set
 Rank = ℕ
 
@@ -82,7 +82,13 @@ module _ where
 
     reverse-∷ʳ : ∀ y (ys : Vec A n) → reverse (ys ∷ʳ y) ≡ y ∷ reverse ys
     reverse-∷ʳ y [] = refl
-    reverse-∷ʳ y (x ∷ ys) rewrite reverse-∷ x ys = {!   !}
+    reverse-∷ʳ y (y' ∷ ys) = begin 
+      reverse ((y' ∷ ys) ∷ʳ y) ≡⟨ refl ⟩
+      reverse (y' ∷ (ys ∷ʳ y)) ≡⟨ reverse-∷ y' (ys ∷ʳ y) ⟩
+      reverse (ys ∷ʳ y) ∷ʳ y'  ≡⟨ cong (_∷ʳ y') (reverse-∷ʳ y ys) ⟩
+      (y ∷ (reverse ys)) ∷ʳ y' ≡⟨ refl ⟩
+      y ∷ ((reverse ys) ∷ʳ y') ≡⟨ cong (y ∷_) (sym (reverse-∷ y' ys)) ⟩
+      y ∷ (reverse (y' ∷ ys)) ∎
 
     -- This is the same functionality as Data.Vec.last without with |
     last' : Vec A (1 + n) → A
@@ -165,7 +171,7 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
 
     -- This function can be defined using just the above functions, however Agda doesn't
     -- allow us to define it here in the record? :(
-    heap→vec' : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
+    heap→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
     -- Same problem as above
     vec→heap : {n : Rank} → (xs : Vec (Priorities × Value) n) → priorityQueue n
 
@@ -211,14 +217,35 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     -- list should contain the inserted element.
     insert-∈-vec : {n : Rank} → (h : priorityQueue n)
                  → (pv : Priorities × Value)
-                 → pv [∈] heap→vec' (insert h pv)
+                 → pv [∈] heap→vec (insert h pv)
 
+    -- This property proves that inserting into a heap doesn't change (remove/add) 
+    -- existing elements in the heap.
+    insert-preserves-∈ : {n : Rank} (h : priorityQueue n)
+                       → (pv : Priorities × Value) {pv' : Priorities × Value} 
+                       → pv ∈ʰ h 
+                       → pv ∈ʰ insert h pv'
+    
+    -- If we are creating a heap from a vector and that vector contains a given item, the
+    -- resulting heap will also contain that same item.
+    [∈]⇒∈ʰ-lemma : {n : Rank} (xs : Vec (Priorities × Value) n)
+                  → (pv : Priorities × Value)
+                  → pv [∈] xs
+                  → pv ∈ʰ vec→heap xs
+
+    -- If we are popping a heap to a list and that heap contains a given item, the resulting
+    -- list will also contain that same item.
+    ∈ʰ⇒[∈]-lemma : {n : Rank} (h : priorityQueue n) 
+                  → (pv : Priorities × Value)
+                  → pv ∈ʰ h 
+                  → pv [∈] heap→vec h
+  
   vec→heap' : {n : Rank} → (xs : Vec (Priorities × Value) n) → priorityQueue n
   vec→heap' xs = Data.Vec.foldl priorityQueue insert emp xs
 
-  heap→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
-  heap→vec {zero} h = []
-  heap→vec {suc n} h = peek h ∷ (heap→vec (pop h))
+  heap→vec' : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
+  heap→vec' {zero} h = []
+  heap→vec' {suc n} h = peek h ∷ (heap→vec' (pop h))
 
   module _ where
     private
@@ -243,8 +270,8 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
       tran : ∀ {xs ys zs}  → xs π ys → ys π zs → xs π zs
 
     -- If we pop all elements from a heap into a vector, that vector will be sorted
-    -- according to the priorities of the elements in the heap.
-    heap→vec-Sorted : (h : priorityQueue n) → SortedVec (heap→vec h)
+    -- according to the priorities of the elements in the heap (thanks to pop-≤).
+    heap→vec-Sorted : (h : priorityQueue n) → SortedVec (heap→vec' h)
     heap→vec-Sorted {zero} h = []-sorted
     heap→vec-Sorted {suc zero} h = [a]-sorted
     heap→vec-Sorted {suc (suc n)} h = [a≤b]-sorted (pop-≤ h) (heap→vec-Sorted (pop h))
@@ -252,26 +279,29 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     -- Popping all elements from a heap created from a list of elements should give
     -- back a permutation of the initial list.
     vec→heap→vec-Permutation : (xs : Vec (Priorities × Value) n) 
-                             → (heap→vec (vec→heap xs)) π xs
+                             → (heap→vec' (vec→heap xs)) π xs
     vec→heap→vec-Permutation xs = {!   !}
+
+    -- This is an alternative to the Permutation π property.
+    -- Proof that any given element from a vector will survive insertion and popping.
+    -- Hence the output vector is a permutation of the input vector.
+    vec→heap→vec-alt : (xs : Vec (Priorities × Value) n)
+                     → (pv : Priorities × Value)
+                     → pv [∈] xs
+                     → pv [∈] (heap→vec (vec→heap xs))
+    vec→heap→vec-alt xs pv q = ∈ʰ⇒[∈]-lemma (vec→heap xs) pv ([∈]⇒∈ʰ-lemma xs pv q)
 
     -- This is the ultimate goal: inserting a list of pairs and then emptying out the heap
     -- should result in a sorted list which is a permutation of the input list.
     priorityQueue-lemma : (xs : Vec (Priorities × Value) n)
-                        → SortedVec (heap→vec (vec→heap xs)) × (heap→vec (vec→heap xs)) π xs
+                        → SortedVec (heap→vec' (vec→heap xs)) × (heap→vec' (vec→heap xs)) π xs
     priorityQueue-lemma xs = (heap→vec-Sorted (vec→heap xs)) , (vec→heap→vec-Permutation xs)
     
-    -- This property proves that inserting into a heap doesn't change the existing
-    -- elements in the heap.
-    -- [∈]⇒∈ʰ-lemma
-    -- (h : priorityQueue n) → x ∈ʰ h → x ∈ʰ insert h x'
-
-    -- x ∈ h → x [∈] (heap→vec h)
 
   --DONE po popu dobim ven value, ostali ap majo vsi višjo piroriteto
-  --TODO element se nahaja v vrsti
-  --TODO ko dam v eno vrsto elemtov pa vse ven poberem, je na tem seznamu eden izmed the elemntov
-  --TODO ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
+  --DONE element se nahaja v vrsti
+  --DONE ko dam v eno vrsto elemtov pa vse ven poberem, je na tem seznamu eden izmed the elemntov
+  --DONE ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
   --TODO ko je elemnt dveh dreves v merge se nahaja pozneje v drvesu
 
 
@@ -290,6 +320,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
     pop = pop-aux ;
     _∈ʰ_ = λ pv h → pv [∈] h ;  -- Reuse the [∈] relation for Vectors
     vec→heap = vec→heap-aux ;
+    heap→vec = heap→vec-aux ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
@@ -297,7 +328,11 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
     pop-≤ = pop-≤-aux ; 
-    insert-∈ = insert-∈-aux }
+    insert-∈ = insert-∈-aux ;
+    insert-∈-vec = insert-∈-vec-aux ;
+    insert-preserves-∈ = insert-preserves-∈-aux ;
+    [∈]⇒∈ʰ-lemma = [∈]⇒∈ʰ-lemma-aux ;
+    ∈ʰ⇒[∈]-lemma = ∈ʰ⇒[∈]-lemma-aux }
     
     where 
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -327,6 +362,10 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
 
       vec→heap-aux : {n : Rank} → Vec (Priorities × Value) n → Vec (Priorities × Value) n
       vec→heap-aux xs = Data.Vec.foldl priorityQueue-aux insert-aux [] xs
+
+      heap→vec-aux : {n : Rank} → Vec (Priorities × Value) n → Vec (Priorities × Value) n
+      heap→vec-aux {zero} h = []
+      heap→vec-aux {suc n} h = peek-aux h ∷ (heap→vec-aux (pop-aux h))
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
                          peek-aux (insert-aux [] (p , v)) ≡ (p , v)
@@ -437,21 +476,32 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       insert-∈-aux : {n : Rank} (h : Vec (Priorities × Value) n)
                    → (pv : Priorities × Value) 
                    → pv [∈] insert-aux h pv
-      insert-∈-aux h pv = ∈-head -- ∈-here (insert-aux h pv)
+      insert-∈-aux h pv = ∈-head
 
-      ∈-lemma : {n : Rank} (h : Vec (Priorities × Value) n)
-              → (pv : Priorities × Value) {pv' : Priorities × Value} 
-              → pv [∈] h 
-              → pv [∈] insert-aux h pv'
-      ∈-lemma .(pv ∷ _) pv ∈-head = ∈-tail ∈-head
-      ∈-lemma .(_ ∷ _) pv (∈-tail pv∈h) = ∈-tail (∈-tail pv∈h)
+      insert-∈-vec-aux : {n : Rank} (h : priorityQueue-aux n)
+                       → (pv : Priorities × Value) 
+                       → pv [∈] (heap→vec-aux (insert-aux h pv))
+      insert-∈-vec-aux {n} h pv = {!   !}
 
-      -- Need to show that if an element is in a list, it is also in the reversed list...
-      [∈]⇒∈ʰ-lemma : {n : ℕ} (xs : Vec (Priorities × Value) n)
+      insert-preserves-∈-aux : {n : Rank} (h : Vec (Priorities × Value) n)
+                             → (pv : Priorities × Value) {pv' : Priorities × Value} 
+                             → pv [∈] h 
+                             → pv [∈] insert-aux h pv'
+      insert-preserves-∈-aux .(pv ∷ _) pv ∈-head = ∈-tail ∈-head
+      insert-preserves-∈-aux .(_ ∷ _) pv (∈-tail pv∈h) = ∈-tail (∈-tail pv∈h)
+
+      -- Need to show that if an element is in the list, it is also in the reversed list...
+      [∈]⇒∈ʰ-lemma-aux : {n : ℕ} (xs : Vec (Priorities × Value) n)
                    → (pv : Priorities × Value)
                    → pv [∈] xs
                    → pv [∈] vec→heap-aux xs
-      [∈]⇒∈ʰ-lemma {n} xs pv p∈xs = [∈]-rev xs p∈xs
+      [∈]⇒∈ʰ-lemma-aux {n} xs pv p∈xs = [∈]-rev xs p∈xs
+
+      ∈ʰ⇒[∈]-lemma-aux : {n : Rank} (h : Vec (Priorities × Value) n) 
+                        → (pv : Priorities × Value) 
+                        → pv [∈] h 
+                        → pv [∈] heap→vec-aux h
+      ∈ʰ⇒[∈]-lemma-aux {n} h pv p∈h = {!   !}
 
 
 -- Weight biased leftist heap
@@ -722,8 +772,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
-    pop-≤ = {!   !} ; 
-    insert-∈ = {!   !}}
+    pop-≤ = pop-≤-aux ; 
+    insert-∈ = insert-∈-aux}
 
     where
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
@@ -784,6 +834,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       pop-≤-aux {zero} (node nᵣ≤nₗ x₁ (p , v) (l , r)) = {!   !}
       pop-≤-aux {suc n} h = {!   !}
 
+      -- It would be useful to prove lemmas like this one
       ∈-merge-lemmaᵣ : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) 
                     → (pv : Priorities × Value)
                     → pv ∈ r
