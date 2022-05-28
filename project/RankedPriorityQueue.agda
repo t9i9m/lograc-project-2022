@@ -1,9 +1,6 @@
-{-# OPTIONS --sized-types #-}
-
 module RankedPriorityQueue where
 
 open import Ordering using (Priority; module ℕ-ordering) -- This is our file
-
 
 open import Level        renaming (zero to lzero; suc to lsuc)
 open import Induction    using (RecStruct)
@@ -23,20 +20,132 @@ open import Axiom.Extensionality.Propositional using (Extensionality)
 postulate fun-ext : ∀ {a b} → Extensionality a b
 
 
+-- Rank denotes the size of a priority queue, i.e. its just a natural number.
 Rank : Set
 Rank = ℕ
 
+module _ where 
+  open Data.List using (foldl; foldr)
 
-data Dec {l : Level} (A : Set l) : Set l where
-  yes : A → Dec A
-  no  : (A → ⊥) → Dec A
+  -- What follow are a bunch of trivial lemmas to assist Agda in being a proof assistant...
+  -- TODO: the lemmas could be shortened by finding common patterns...
+  
+  lemma-i≡i+0 : {i : Rank} → i ≡ (i + zero)
+  lemma-i≡i+0 {i} = sym (+-comm i zero)
+
+  lemma-i+1≡suci : {i : Rank} → (i + 1) ≡ (suc i)
+  lemma-i+1≡suci {i} = +-comm i 1
+
+  -- lemma-+-sucₙ' is a generalization of lemma-+-sucₙ
+  -- Both are a generalization of lemma-1aa to n elements
+  lemma-+-sucₙ' : (a s : ℕ) → (xs : List ℕ) → a + suc (foldl _+_ s xs) ≡ suc (foldl _+_ a (s ∷ xs))
+  lemma-+-sucₙ' a s [] = +-suc a s
+  lemma-+-sucₙ' a s (x ∷ xs) = 
+    begin 
+      a + suc (foldl _+_ (s + x) xs)   ≡⟨ lemma-+-sucₙ' a (s + x) xs ⟩ 
+      suc (foldl _+_ (a + (s + x)) xs) ≡⟨ cong suc (cong (λ y → foldl _+_ y xs) (sym (+-assoc a s x))) ⟩
+      suc (foldl _+_ (a + s + x) xs)
+      ∎
+
+  -- This is lemma-+-sucₙ' with the additional proof that a + 0 = a 
+  lemma-+-sucₙ : (a : ℕ) → (xs : List ℕ) → a + suc (foldl _+_ 0 xs) ≡ suc (foldl _+_ 0 (a ∷ xs))
+  lemma-+-sucₙ a xs = 
+    begin
+      a + suc (foldl _+_ 0 xs)   ≡⟨ lemma-+-sucₙ' a 0 xs ⟩
+      suc (foldl _+_ (a + 0) xs) ≡⟨ cong suc (cong (λ x → foldl _+_ x xs) (+-comm a 0)) ⟩
+      suc (foldl _+_ a xs)
+      ∎
+
+module _ where
+  open import Data.Vec using (reverse; _∷ʳ_; _++_; initLast; last; init)
+  
+  -- Can't import useful properties because of old Agda version... :(
+  -- open import Data.Vec.Properties using (reverse-∷)
+
+  -- Note: using `variable n : ℕ` makes is easy to work with vector sizes.
+  private
+    variable
+      a : Level
+      A : Set a
+      m n : ℕ
+
+  -- An inductive relation that specifies that a Vector contains a given element.
+  data _[∈]_ {A : Set a} (x : A) : Vec A n → Set a where
+    ∈-head : {h : Vec A n} → x [∈] (x ∷ h)
+    ∈-tail : {h : Vec A n} {y : A} → x [∈] h → x [∈] (y ∷ h)
+
+  -- A bunch of properties about reversing vectors and ∈
+  private
+    postulate 
+      -- This is already proven in a newer version of Data.Vec.Properties
+      reverse-∷ : ∀ x (xs : Vec A n) → reverse (x ∷ xs) ≡ reverse xs ∷ʳ x
+
+    reverse-∷ʳ : ∀ y (ys : Vec A n) → reverse (ys ∷ʳ y) ≡ y ∷ reverse ys
+    reverse-∷ʳ y [] = refl
+    reverse-∷ʳ y (x ∷ ys) rewrite reverse-∷ x ys = {!   !}
+
+    -- This is the same functionality as Data.Vec.last without with |
+    last' : Vec A (1 + n) → A
+    last' (x ∷ []) = x
+    last' (_ ∷ x ∷ xs) = last' (x ∷ xs)
+
+    -- This is the same functionality as Data.Vec.init without with |
+    dropLast : (xs : Vec A (1 + n)) → Vec A n
+    dropLast (x ∷ []) = []
+    dropLast (x ∷ x₁ ∷ xs) = x ∷ (dropLast (x₁ ∷ xs))
+    
+    dropLast-lemma : (y : A) (ys : Vec A n) → dropLast (ys ∷ʳ y) ≡ ys
+    dropLast-lemma y [] = refl
+    dropLast-lemma y (x ∷ []) = refl
+    dropLast-lemma y (x ∷ x₁ ∷ ys) = cong (x ∷_) (dropLast-lemma y (x₁ ∷ ys))
+
+    dropLast-id : (xs : Vec A (1 + n)) → dropLast xs ∷ʳ last' xs ≡ xs
+    dropLast-id (x ∷ []) = refl
+    dropLast-id (x ∷ x₁ ∷ xs) = cong (x ∷_) (dropLast-id (x₁ ∷ xs))
+
+    reverse-dropLast-id : (xs : Vec A (1 + n)) 
+                        → reverse (dropLast xs ∷ʳ last' xs) ≡ reverse xs
+    reverse-dropLast-id xs = cong reverse (dropLast-id xs)
+
+    dropFirst : Vec A (1 + n) → Vec A n
+    dropFirst (x ∷ xs) = xs
+
+    reverse-first-last : (xs : Vec A (1 + n))
+                       → reverse (dropLast xs) ≡ dropFirst (reverse xs)
+    reverse-first-last xs with initLast xs
+    ... | (ys , y , refl) rewrite reverse-∷ʳ y ys | dropLast-lemma y ys = refl
+
+    dropLast-reverse : (xs : Vec A (1 + n)) → reverse xs ≡ last' xs ∷ (reverse (dropLast xs))
+    dropLast-reverse xs rewrite sym (reverse-dropLast-id xs) = reverse-∷ʳ (last' xs) (dropLast xs)
+
+    aux-lemma' : {p : A} {xs : Vec A n} (ys : Vec A m)
+              → p [∈] xs → p [∈] (xs ++ ys)
+    aux-lemma' {xs = x ∷ []} ys ∈-head = ∈-head
+    aux-lemma' {xs = x ∷ x₁ ∷ xs} ys ∈-head = ∈-head
+    aux-lemma' {xs = x ∷ x₁ ∷ xs} ys (∈-tail q) = ∈-tail (aux-lemma' ys q)
+
+    ∈-append : {p : A} {xs : Vec A n} (y : A)
+              → p [∈] xs → p [∈] (xs ∷ʳ y)
+    ∈-append {p = .x} {xs = x ∷ xs} y ∈-head = ∈-head
+    ∈-append {p = p} {xs = x ∷ xs} y (∈-tail q) = ∈-tail (∈-append y q)
+
+    ∈-head-rev : {p : A} (xs : Vec A n)
+              → p [∈] (p ∷ xs)
+              → p [∈] reverse (p ∷ xs)
+    ∈-head-rev [] q = ∈-head
+    ∈-head-rev {p = p} (x ∷ xs) q rewrite (dropLast-reverse (p ∷ x ∷ xs)) = ∈-tail (∈-head-rev (dropLast (x ∷ xs)) ∈-head)
+
+  -- If a vector contains an element, the element is contained also in the reversed vector.
+  [∈]-rev : {p : A} (xs : Vec A n)
+          → p [∈] xs 
+          → p [∈] reverse xs
+  [∈]-rev (p ∷ xs) ∈-head = ∈-head-rev xs ∈-head
+  [∈]-rev (x ∷ xs) (∈-tail p∈xs) rewrite (reverse-∷ x xs) = ∈-append x ([∈]-rev xs p∈xs)
 
 
 record PriorityQueue {l₁ l₂ l₃ : Level} 
                      (Pr : Priority {l₁}) (Value : Set l₂) : Set (lsuc (l₁ ⊔ l₂ ⊔ l₃)) where 
   open Priority Pr renaming (P to Priorities)
-
-  -- data _∈-priorityQueue_ (pv : Priorities × Value) : priorityQueue → Set where
 
   field 
     -- type of priorityQueue data (for storing priority-value pairs)
@@ -50,8 +159,15 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     -- pop element with priority
     pop : {n : Rank} → priorityQueue (suc n) → priorityQueue n
   
-    -- contains : {n : Rank} → priorityQueue n → Priorities × Value → Bool
-    _∈-priorityQueue_ : {n : Rank} → (pv : Priorities × Value) → priorityQueue n → Set l₃
+    -- An instance of the record type should implement an ∈ relation that gives
+    -- a proof that a given element is an element of the heap. 
+    _∈ʰ_ : {n : Rank} → (pv : Priorities × Value) → priorityQueue n → Set l₃
+
+    -- This function can be defined using just the above functions, however Agda doesn't
+    -- allow us to define it here in the record? :(
+    heap→vec' : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
+    -- Same problem as above
+    vec→heap : {n : Rank} → (xs : Vec (Priorities × Value) n) → priorityQueue n
 
   -- Helper functions
   peekp : {n : Rank} → priorityQueue (suc n) → Priorities
@@ -60,13 +176,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
   peekv : {n : Rank} → priorityQueue (suc n) → Value
   peekv h = proj₂ (peek h)
   
-  insertₙ : {n : Rank} → (xs : Vec (Priorities × Value) n) → priorityQueue n
-  insertₙ xs = Data.Vec.foldl priorityQueue insert emp xs
-
-  -- heap→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
-  -- heap→vec {zero} h = []
-  -- heap→vec {suc n} h = peek h ∷ (heap→vec (pop h))
-    
   field
     -- behavioural properties
     insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ (p , v)
@@ -88,18 +197,24 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → p₁ ≢ p₂
                   → pop (insert (insert emp (p₁ , v₁)) (p₂ , v₂)) ≡ insert emp (p₁ , v₁)
 
+    -- Consecutive peeks and pops from a heap should return elements with decreasing priorities.
     -- Note: need at least two values to peek
     pop-≤ : {n : Rank} → (h : priorityQueue (suc (suc n)))
           → peekp h ≤ᵖ (peekp (pop h))
 
+    -- If we insert an element into a heap, the new heap should contain that element.
     insert-∈ : {n : Rank} → (h : priorityQueue n)
              → (pv : Priorities × Value) 
-             → pv ∈-priorityQueue (insert h pv)
-            -- → contains (insert h pv) pv ≡ true
+             → pv ∈ʰ (insert h pv)
 
-    -- insert-∈-vec : {n : Rank} → (h : priorityQueue n)
-    --              → (pv : Priorities × Value)
-    --              → pv ∈-vec heap→vec (insert h pv)   
+    -- If we insert an element into a heap and empty the heap into a list, that 
+    -- list should contain the inserted element.
+    insert-∈-vec : {n : Rank} → (h : priorityQueue n)
+                 → (pv : Priorities × Value)
+                 → pv [∈] heap→vec' (insert h pv)
+
+  vec→heap' : {n : Rank} → (xs : Vec (Priorities × Value) n) → priorityQueue n
+  vec→heap' xs = Data.Vec.foldl priorityQueue insert emp xs
 
   heap→vec : {n : Rank} → (h : priorityQueue n) → Vec (Priorities × Value) n
   heap→vec {zero} h = []
@@ -118,6 +233,14 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → proj₁ pv₁ ≤ᵖ proj₁ pv₂ 
                   → SortedVec (pv₂ ∷ rest)
                   → SortedVec (pv₁ ∷ pv₂ ∷ rest)
+  
+    -- x π y ⇔ x is a permutation of y, where x and y are vectors of the same lengths
+    -- Adapted from: Data.List.Relation.Binary.Permutation.Propositional
+    data _π_ : Vec (Priorities × Value) n → Vec (Priorities × Value) n → Set (l₁ ⊔ l₂) where
+      refl : ∀ {xs}        → xs π xs
+      prep : ∀ {xs ys} x   → xs π ys → (x ∷ xs) π (x ∷ ys)
+      swap : ∀ {xs ys} x y → xs π ys → (x ∷ y ∷ xs) π (y ∷ x ∷ ys)
+      tran : ∀ {xs ys zs}  → xs π ys → ys π zs → xs π zs
 
     -- If we pop all elements from a heap into a vector, that vector will be sorted
     -- according to the priorities of the elements in the heap.
@@ -126,17 +249,30 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     heap→vec-Sorted {suc zero} h = [a]-sorted
     heap→vec-Sorted {suc (suc n)} h = [a≤b]-sorted (pop-≤ h) (heap→vec-Sorted (pop h))
 
+    -- Popping all elements from a heap created from a list of elements should give
+    -- back a permutation of the initial list.
+    vec→heap→vec-Permutation : (xs : Vec (Priorities × Value) n) 
+                             → (heap→vec (vec→heap xs)) π xs
+    vec→heap→vec-Permutation xs = {!   !}
+
+    -- This is the ultimate goal: inserting a list of pairs and then emptying out the heap
+    -- should result in a sorted list which is a permutation of the input list.
+    priorityQueue-lemma : (xs : Vec (Priorities × Value) n)
+                        → SortedVec (heap→vec (vec→heap xs)) × (heap→vec (vec→heap xs)) π xs
+    priorityQueue-lemma xs = (heap→vec-Sorted (vec→heap xs)) , (vec→heap→vec-Permutation xs)
     
-  --TODO po popu dobim ven value, ostali ap majo vsi višjo piroriteto
+    -- This property proves that inserting into a heap doesn't change the existing
+    -- elements in the heap.
+    -- [∈]⇒∈ʰ-lemma
+    -- (h : priorityQueue n) → x ∈ʰ h → x ∈ʰ insert h x'
+
+    -- x ∈ h → x [∈] (heap→vec h)
+
+  --DONE po popu dobim ven value, ostali ap majo vsi višjo piroriteto
   --TODO element se nahaja v vrsti
   --TODO ko dam v eno vrsto elemtov pa vse ven poberem, je na tem seznamu eden izmed the elemntov
   --TODO ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
   --TODO ko je elemnt dveh dreves v merge se nahaja pozneje v drvesu
-
-  -- insertₙ-priorityQueue→vec : {n : Rank} 
-  --   → (p : 1 ≤ n) 
-  --   → (xs : {! Unique  !} (Vec (Priorities × Value) n)) -- Unique
-  --   → priorityQueue→vec (insertₙ p xs) ≡ {!   !} -- Sorted xs
 
 
 module VecPriorityQueueUnordered {l₁ l₂ : Level} 
@@ -145,30 +281,32 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
   open Priority Pr renaming (P to Priorities)
   open PriorityQueue
 
-  data _∈_ {n : Rank} (pv : Priorities × Value) : Vec (Priorities × Value) n → Set (l₁ ⊔ l₂) where
-    ∈-here  : (h : Vec (Priorities × Value) n) → pv ∈ h
-    ∈-there : (h : Vec (Priorities × Value) (suc n)) → pv ∈ (tail h)
-
   VecPriorityQueue : PriorityQueue Pr Value
   VecPriorityQueue = record { 
     priorityQueue = priorityQueue-aux ;
-     emp = [] ;
-     insert = insert-aux ;
-     peek = peek-aux ;
-     pop = pop-aux ;
-     _∈-priorityQueue_ = _∈_ ;
-     insert₁-peek = insert₁-peek-aux ;
-     insert₁-pop = insert₁-pop-aux ; 
-     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
-     insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
-     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
-     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
-     pop-≤ = pop-≤-aux ; 
-     insert-∈ = insert-∈-aux}
-     
+    emp = [] ;
+    insert = insert-aux ;
+    peek = peek-aux ;
+    pop = pop-aux ;
+    _∈ʰ_ = λ pv h → pv [∈] h ;  -- Reuse the [∈] relation for Vectors
+    vec→heap = vec→heap-aux ;
+    insert₁-peek = insert₁-peek-aux ;
+    insert₁-pop = insert₁-pop-aux ; 
+    insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
+    insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
+    insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
+    insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
+    pop-≤ = pop-≤-aux ; 
+    insert-∈ = insert-∈-aux }
+    
     where 
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
       priorityQueue-aux = λ n → Vec (Priorities × Value) n
+
+      insertₙ-aux : {n m : Rank} → (h : Vec (Priorities × Value) n) 
+                  → (xs : Vec (Priorities × Value) m)
+                  → Vec (Priorities × Value) (m + n)
+      insertₙ-aux {n} {m} h xs = Data.Vec.foldl (λ n' → Vec (Priorities × Value) (n' + n)) (λ x → _∷ x) h xs 
 
       insert-aux : {n : Rank} → Vec (Priorities × Value) n → Priorities × Value → Vec (Priorities × Value) (suc n)
       insert-aux xs pv = pv ∷ xs
@@ -186,6 +324,9 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       pop-aux {suc n} ((p₁ , v₁) ∷ xs) | (p₂ , v₂) with cmp p₁ p₂ 
       pop-aux {suc n} ((p₁ , v₁) ∷ xs) | p₂ , v₂ | le _ = xs
       pop-aux {suc n} ((p₁ , v₁) ∷ xs) | p₂ , v₂ | gt _ = (p₁ , v₁) ∷ pop-aux xs
+
+      vec→heap-aux : {n : Rank} → Vec (Priorities × Value) n → Vec (Priorities × Value) n
+      vec→heap-aux xs = Data.Vec.foldl priorityQueue-aux insert-aux [] xs
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
                          peek-aux (insert-aux [] (p , v)) ≡ (p , v)
@@ -293,10 +434,25 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       pop-≤-aux {suc n} ((p₀ , v₀) ∷ hs) | p₁≤p₂ | gt p₀>p₁ | le p₀≤p₂ | q = subst (proj₁ (peek-aux hs) ≤ᵖ_) (sym q) (≤ᵖ-total-lemma p₀>p₁)
       pop-≤-aux {suc n} ((p₀ , v₀) ∷ hs) | p₁≤p₂ | gt p₀>p₁ | gt p₀>p₂ | q = subst ((proj₁ (peek-aux hs) ≤ᵖ_)) (sym q) p₁≤p₂
 
-      insert-∈-aux : {n : Rank} (h : priorityQueue-aux n)
+      insert-∈-aux : {n : Rank} (h : Vec (Priorities × Value) n)
                    → (pv : Priorities × Value) 
-                   → pv ∈ insert-aux h pv
-      insert-∈-aux h pv = ∈-here (insert-aux h pv)
+                   → pv [∈] insert-aux h pv
+      insert-∈-aux h pv = ∈-head -- ∈-here (insert-aux h pv)
+
+      ∈-lemma : {n : Rank} (h : Vec (Priorities × Value) n)
+              → (pv : Priorities × Value) {pv' : Priorities × Value} 
+              → pv [∈] h 
+              → pv [∈] insert-aux h pv'
+      ∈-lemma .(pv ∷ _) pv ∈-head = ∈-tail ∈-head
+      ∈-lemma .(_ ∷ _) pv (∈-tail pv∈h) = ∈-tail (∈-tail pv∈h)
+
+      -- Need to show that if an element is in a list, it is also in the reversed list...
+      [∈]⇒∈ʰ-lemma : {n : ℕ} (xs : Vec (Priorities × Value) n)
+                   → (pv : Priorities × Value)
+                   → pv [∈] xs
+                   → pv [∈] vec→heap-aux xs
+      [∈]⇒∈ʰ-lemma {n} xs pv p∈xs = [∈]-rev xs p∈xs
+
 
 -- Weight biased leftist heap
 module MinHeap {l₁ l₂ l₃ : Level} 
@@ -305,39 +461,19 @@ module MinHeap {l₁ l₂ l₃ : Level}
   open Priority Pr renaming (P to Priorities)
   open PriorityQueue      
 
-  module _ where
-    open ℕ-ordering using (ℕ-priority)
-    open Priority ℕ-priority renaming (cmp to ℕ-cmp; ≤ᵖ-total-lemma to ℕ-≤ᵖ-total-lemma)
+  open ℕ-ordering using (ℕ-priority)
+  open Priority ℕ-priority renaming (
+    _≤ᵖ_ to _ℕ-≤ᵖ_; P to ℕ-P; ≤ᵖ-trans to ℕ-≤ᵖ-trans; ≤ᵖ-antisym to ℕ-≤ᵖ-antisym; ≤ᵖ-refl to ℕ-≤ᵖ-refl;
+    ≤ᵖ-total-lemma to ℕ-≤ᵖ-total-lemma; ≤ᵖ-total to ℕ-≤ᵖ-total; ≤ᵖ-proj₁ to ℕ-≤ᵖ-proj₁; ≤ᵖ-proj₂ to ℕ-≤ᵖ-proj₂;
+    cmp to ℕ-cmp; cmp' to ℕ-cmp')
+  open Data.Nat.Properties using (+-comm; +-assoc; +-suc)
+
+  module _ where 
+    open Data.List using (foldl; foldr)
 
     -- What follow are a bunch of trivial lemmas to assist Agda in being a proof assistant...
     -- TODO: the lemmas could be shortened by finding common patterns...
     
-    lemma-i≡i+0 : {i : Rank} → i ≡ (i + zero)
-    lemma-i≡i+0 {i} = sym (+-comm i zero)
-
-    lemma-i+1≡suci : {i : Rank} → (i + 1) ≡ (suc i)
-    lemma-i+1≡suci {i} = +-comm i 1
-
-    -- lemma-+-sucₙ' is a generalization of lemma-+-sucₙ
-    -- Both are a generalization of lemma-1aa to n elements
-    lemma-+-sucₙ' : (a s : ℕ) → (xs : List ℕ) → a + suc (foldl _+_ s xs) ≡ suc (foldl _+_ a (s ∷ xs))
-    lemma-+-sucₙ' a s [] = +-suc a s
-    lemma-+-sucₙ' a s (x ∷ xs) = 
-      begin 
-        a + suc (foldl _+_ (s + x) xs)   ≡⟨ lemma-+-sucₙ' a (s + x) xs ⟩ 
-        suc (foldl _+_ (a + (s + x)) xs) ≡⟨ cong suc (cong (λ y → foldl _+_ y xs) (sym (+-assoc a s x))) ⟩
-        suc (foldl _+_ (a + s + x) xs)
-        ∎
-
-    -- This is lemma-+-sucₙ' with the additional proof that a + 0 = a 
-    lemma-+-sucₙ : (a : ℕ) → (xs : List ℕ) → a + suc (foldl _+_ 0 xs) ≡ suc (foldl _+_ 0 (a ∷ xs))
-    lemma-+-sucₙ a xs = 
-      begin
-        a + suc (foldl _+_ 0 xs)   ≡⟨ lemma-+-sucₙ' a 0 xs ⟩
-        suc (foldl _+_ (a + 0) xs) ≡⟨ cong suc (cong (λ x → foldl _+_ x xs) (+-comm a 0)) ⟩
-        suc (foldl _+_ a xs)
-        ∎
-
     lemma-1aa : (b c d : Rank) → (b + suc (c + d)) ≡ suc (b + c + d)
     lemma-1aa b c d =
       begin b + suc (c + d) ≡⟨ +-suc b (c + d) ⟩ 
@@ -476,7 +612,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
     lemma-cc : (a b c : Rank) → a + b + c ≡ b + a + c
     lemma-cc a b c =
       begin
-        a + b + c ≡⟨ cong₂ (_+_) (+-comm a b) (a≡a c) ⟩
+        a + b + c ≡⟨ cong₂ (_+_) (+-comm a b) refl ⟩
         b + a + c
         ∎
 
@@ -509,6 +645,11 @@ module MinHeap {l₁ l₂ l₃ : Level}
             → Priorities × Value 
             → (Heap nₗ) × (Heap nᵣ)
             → Heap n 
+
+    data _∈_ {n : Rank} (pv : Priorities × Value) : Heap n → Set (l₁ ⊔ l₂) where
+       ∈-here  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) → pv ∈ node proof₁ proof₂ pv (l , r)
+       ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ l → pv ∈ node proof₁ proof₂ pv₂ (l , r)
+       ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ r → pv ∈ node proof₁ proof₂ pv₂ (l , r)
 
     rank : {i : Rank} → Heap i → Rank
     rank {i} h = i
@@ -555,7 +696,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
       (node {nᵣₗ} {nᵣᵣ} {nᵣ} nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ (p₂ , v₂) (rl , rr))
         with cmp p₁ p₂ 
           | ℕ-cmp (nₗᵣ + nᵣ) nₗₗ 
-          | ℕ-cmp (nₗ + nᵣᵣ) nᵣₗ --okasaki diffrence (before was (nᵣᵣ + nₗ))
+          | ℕ-cmp (nₗ + nᵣᵣ) nᵣₗ --Okasaki difference (before was (nᵣᵣ + nₗ))
     ... | le p₁≤p₂ | le nₗᵣ+nᵣ≤nₗₗ | _ = subst Heap (lemma-e nₗₗ nₗᵣ nᵣ nₗ (sym nₗ≡1+nₗₗ+nₗᵣ)) (node nₗᵣ+nᵣ≤nₗₗ (cong suc (lemma-a nₗₗ nₗᵣ nᵣ)) (p₁ , v₁) (ll , merge' (rec (nₗᵣ , nᵣ) (lemma-l nₗ≡1+nₗₗ+nₗᵣ)) lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ (p₂ , v₂) (rl , rr))))
     ... | le p₁≤p₂ | gt nₗᵣ+nᵣ>nₗₗ | _ = subst Heap (lemma-e nₗₗ nₗᵣ nᵣ nₗ (sym nₗ≡1+nₗₗ+nₗᵣ)) (node (ℕ-≤ᵖ-total-lemma nₗᵣ+nᵣ>nₗₗ) (cong suc (lemma-b nₗₗ nₗᵣ nᵣ)) (p₁ , v₁) ((merge' (rec (nₗᵣ , nᵣ) (lemma-l nₗ≡1+nₗₗ+nₗᵣ)) lr (node nᵣᵣ≤nᵣₗ nᵣ≡1+nᵣₗ+nᵣᵣ (p₂ , v₂) (rl , rr))) , ll))
     ... | gt p₁>p₂ | _ | le nₗ+nᵣᵣ≤nᵣₗ = subst Heap (lemma-f nᵣₗ nᵣᵣ nₗ nᵣ (sym nᵣ≡1+nᵣₗ+nᵣᵣ)) (node nₗ+nᵣᵣ≤nᵣₗ (lemma-c nₗ nᵣₗ nᵣᵣ) (p₂ , v₂) (rl , (merge' (rec (nₗ , nᵣᵣ) (lemma-r nᵣ≡1+nᵣₗ+nᵣᵣ)) (node nₗᵣ≤nₗₗ nₗ≡1+nₗₗ+nₗᵣ (p₁ , v₁) (ll , lr)) rr)))
@@ -567,11 +708,6 @@ module MinHeap {l₁ l₂ l₃ : Level}
     singleton : Priorities × Value → Heap 1
     singleton pv = node z≤n refl pv (empty , empty)
 
-    data _∈_ {n : Rank} (pv : Priorities × Value) : Heap n → Set (l₁ ⊔ l₂) where
-       ∈-here  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) → pv ∈ node proof₁ proof₂ pv (l , r)
-       ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ l → pv ∈ node proof₁ proof₂ pv₂ (l , r)
-       ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ r → pv ∈ node proof₁ proof₂ pv₂ (l , r)
-
   MinHeapPriorityQueue : PriorityQueue Pr Value   
   MinHeapPriorityQueue = record { 
     priorityQueue = priorityQueue-aux ;
@@ -579,7 +715,7 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert = insert-aux;
     peek = peek-aux ;
     pop = pop-aux ;
-    _∈-priorityQueue_ = _∈_ ;
+    _∈ʰ_ = _∈_ ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
@@ -641,3 +777,27 @@ module MinHeap {l₁ l₂ l₃ : Level}
       ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
       ... | gt _ = refl
       
+      -- pop-≤ is impossible to prove because Heap doesn't contain any priority ordering information.
+      -- Priority ordering is imposed by insert, but here we just have a heap.
+      pop-≤-aux : {n : Rank} (h : priorityQueue-aux (suc (suc n))) 
+                → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
+      pop-≤-aux {zero} (node nᵣ≤nₗ x₁ (p , v) (l , r)) = {!   !}
+      pop-≤-aux {suc n} h = {!   !}
+
+      ∈-merge-lemmaᵣ : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) 
+                    → (pv : Priorities × Value)
+                    → pv ∈ r
+                    → pv ∈ merge l r
+      ∈-merge-lemmaᵣ {nₗ} {nᵣ} l r pv pv∈r = {!   !}
+
+      insert-∈-aux : {n : Rank} (h : priorityQueue-aux n) (pv : Priorities × Value) 
+                   → pv ∈ insert-aux h pv
+      insert-∈-aux {zero} empty pv = ∈-here empty empty z≤n refl
+      insert-∈-aux {suc n} (node x x₁ (p₀ , v₀) (l , r)) (p , v) with cmp p₀ p
+      insert-∈-aux {suc n} (node {nₗ} {nᵣ} x x₁ (p₀ , v₀) (l , r)) (p , v) | le p₀≤p with ℕ-cmp (nᵣ + 1) nₗ | merge r (singleton (p , v))
+      insert-∈-aux {suc n} (node {nₗ} {nᵣ} x x₁ (p₀ , v₀) (l , r)) (p , v) | le p₀≤p | le nᵣ+1≤nₗ | q = {! ∈-right l q nᵣ+1≤nₗ ? (p₀ , v₀) (∈-merge-lemmaᵣ r (singleton (p , v)) (p , v) (∈-here empty empty z≤n refl)) !}
+      insert-∈-aux {suc n} (node {nₗ} {nᵣ} x x₁ (p₀ , v₀) (l , r)) (p , v) | le p₀≤p | gt nᵣ+1>nₗ | q = {!   !}
+      insert-∈-aux {suc n} (node x x₁ (p₀ , v₀) (l , r)) (p , v) | gt p₀>p = {! ∈-here (subst Heap lemma-i≡i+0 (node x x₁ (p₀ , v₀) (l , r))) empty z≤n (lemma-d (suc n) 0 0)  !}
+
+      -- ∈-here (subst Heap lemma-i≡i+0 (node x x₁ (p₀ , v₀) (l , r))) empty z≤n (lemma-d (suc n) 0 0)
+    
