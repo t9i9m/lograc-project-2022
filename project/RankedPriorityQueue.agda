@@ -70,6 +70,7 @@ module _ where
       m n : ℕ
 
   -- An inductive relation that specifies that a Vector contains a given element.
+  -- `a [∈] b` is read as "a in vector b"
   data _[∈]_ {A : Set a} (x : A) : Vec A n → Set a where
     ∈-head : {h : Vec A n} → x [∈] (x ∷ h)
     ∈-tail : {h : Vec A n} {y : A} → x [∈] h → x [∈] (y ∷ h)
@@ -247,6 +248,9 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
   heap→vec' {zero} h = []
   heap→vec' {suc n} h = peek h ∷ (heap→vec' (pop h))
 
+  heap→vecp : {n : Rank} → (h : priorityQueue n) → Vec Priorities n
+  heap→vecp h = Data.Vec.map proj₁ (heap→vec' h)
+
   module _ where
     private
       variable
@@ -260,14 +264,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
                   → proj₁ pv₁ ≤ᵖ proj₁ pv₂ 
                   → SortedVec (pv₂ ∷ rest)
                   → SortedVec (pv₁ ∷ pv₂ ∷ rest)
-  
-    -- x π y ⇔ x is a permutation of y, where x and y are vectors of the same lengths
-    -- Adapted from: Data.List.Relation.Binary.Permutation.Propositional
-    data _π_ : Vec (Priorities × Value) n → Vec (Priorities × Value) n → Set (l₁ ⊔ l₂) where
-      refl : ∀ {xs}        → xs π xs
-      prep : ∀ {xs ys} x   → xs π ys → (x ∷ xs) π (x ∷ ys)
-      swap : ∀ {xs ys} x y → xs π ys → (x ∷ y ∷ xs) π (y ∷ x ∷ ys)
-      tran : ∀ {xs ys zs}  → xs π ys → ys π zs → xs π zs
 
     -- If we pop all elements from a heap into a vector, that vector will be sorted
     -- according to the priorities of the elements in the heap (thanks to pop-≤).
@@ -276,19 +272,27 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     heap→vec-Sorted {suc zero} h = [a]-sorted
     heap→vec-Sorted {suc (suc n)} h = [a≤b]-sorted (pop-≤ h) (heap→vec-Sorted (pop h))
 
+    -- x π y ⇔ x is a permutation of y, where x and y are vectors of the same lengths
+    -- Adapted from: Data.List.Relation.Binary.Permutation.Propositional
+    data _π_ : Vec (Priorities × Value) n → Vec (Priorities × Value) n → Set (l₁ ⊔ l₂) where
+      refl : ∀ {xs}        → xs π xs
+      prep : ∀ {xs ys} x   → xs π ys → (x ∷ xs) π (x ∷ ys)
+      swap : ∀ {xs ys} x y → xs π ys → (x ∷ y ∷ xs) π (y ∷ x ∷ ys)
+      tran : ∀ {xs ys zs}  → xs π ys → ys π zs → xs π zs
+
     -- Popping all elements from a heap created from a list of elements should give
     -- back a permutation of the initial list.
     vec→heap→vec-Permutation : (xs : Vec (Priorities × Value) n) 
-                             → (heap→vec' (vec→heap xs)) π xs
+                              → (heap→vec' (vec→heap xs)) π xs
     vec→heap→vec-Permutation xs = {!   !}
 
     -- This is an alternative to the Permutation π property.
     -- Proof that any given element from a vector will survive insertion and popping.
     -- Hence the output vector is a permutation of the input vector.
     vec→heap→vec-alt : (xs : Vec (Priorities × Value) n)
-                     → (pv : Priorities × Value)
-                     → pv [∈] xs
-                     → pv [∈] (heap→vec (vec→heap xs))
+                      → (pv : Priorities × Value)
+                      → pv [∈] xs
+                      → pv [∈] (heap→vec (vec→heap xs))
     vec→heap→vec-alt xs pv q = ∈ʰ⇒[∈]-lemma (vec→heap xs) pv ([∈]⇒∈ʰ-lemma xs pv q)
 
     -- This is the ultimate goal: inserting a list of pairs and then emptying out the heap
@@ -309,7 +313,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
                                   (Pr : Priority {l₁}) (Value : Set l₂) where
   
   open Priority Pr renaming (P to Priorities)
-  open PriorityQueue
+  -- open PriorityQueue
 
   VecPriorityQueue : PriorityQueue Pr Value
   VecPriorityQueue = record { 
@@ -335,6 +339,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
     ∈ʰ⇒[∈]-lemma = ∈ʰ⇒[∈]-lemma-aux }
     
     where 
+
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
       priorityQueue-aux = λ n → Vec (Priorities × Value) n
 
@@ -434,6 +439,14 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       lemma-3 {suc n} ((p₁ , v₁) ∷ xs) p | le x = ≤ᵖ-antisym p x
       lemma-3 {suc n} ((p₁ , v₁) ∷ xs) p | gt x = refl
 
+      lemma-3' : {n : Rank} → (h : Vec (Priorities × Value) (2 + n))
+              → proj₁ (peek-aux (tail h)) ≤ᵖ proj₁ (head h)
+              → peek-aux (tail h) ≡ peek-aux h
+      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p with cmp p₁ p₂
+      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p | le x = {!   !}
+      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p | gt x = refl
+      lemma-3' {suc n} h p = {!   !}
+
       lemma-4 : {n : Rank} → (h : Vec (Priorities × Value) (2 + n))
               → ¬ (proj₁ (head h) ≤ᵖ proj₁ (peek-aux (tail h)))
               → (head h) ∷ (pop-aux (tail h)) ≡ pop-aux h
@@ -479,6 +492,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
                    → pv [∈] insert-aux h pv
       insert-∈-aux h pv = ∈-head
 
+      -- Read as "head in vec" lemma
       -- N.B. It seems Agda can figure out lemma-4 by itself (for the ∈-tail case).
       head-[∈]-lemma : {n : Rank} (h : Vec (Priorities × Value) n)
                            → (pv : Priorities × Value)
@@ -506,20 +520,126 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
                    → pv [∈] xs
                    → pv [∈] vec→heap-aux xs
       [∈]⇒∈ʰ-lemma-aux {n} xs pv p∈xs = [∈]-rev xs p∈xs
+      
+      module _ where
+        open PriorityQueue VecPriorityQueue using (SortedVec)
+        open SortedVec
+
+        private
+          variable
+            n : ℕ
+
+        -- If we pop all elements from a heap into a vector, that vector will be sorted
+        -- according to the priorities of the elements in the heap (thanks to pop-≤).
+        heap→vec-Sorted : (h : Vec (Priorities × Value) n) → SortedVec (heap→vec-aux h)
+        heap→vec-Sorted {zero} h = []-sorted
+        heap→vec-Sorted {suc zero} h = [a]-sorted
+        heap→vec-Sorted {suc (suc n)} h = [a≤b]-sorted (pop-≤-aux h) (heap→vec-Sorted (pop-aux h))
+
+        -- Need to figure out a good definition to make proofs doable...
+        insert-sorted : (xs : Vec (Priorities × Value) n)
+              → (pv : Priorities × Value)
+              → Vec (Priorities × Value) (1 + n)
+        insert-sorted [] pv = pv ∷ []
+        insert-sorted (x ∷ xs) (p , v) with cmp p (proj₁ (peek-aux (x ∷ xs)))
+        ... | le x₁ = (p , v) ∷ x ∷ xs
+        ... | gt x₁ = {! x ∷   !}
+        -- insert-sorted [] pv = pv ∷ []
+        -- insert-sorted ((p' , v') ∷ xs) (p , v) with cmp p p'
+        -- ... | le x = (p , v) ∷ (p' , v') ∷ xs
+        -- ... | gt x = (p' , v') ∷ (insert-sorted xs (p , v))
+        
+        -- insert-sorted : {xs : Vec (Priorities × Value) n}
+        --               → SortedVec xs → (pv : Priorities × Value)
+        --               → Vec (Priorities × Value) (1 + n)
+        -- insert-sorted {xs = []} sorting pv = pv ∷ []
+        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) with cmp p p'
+        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) | le _ = (p , v) ∷ (p' , v') ∷ xs
+        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) | gt x = {!  !}
+        -- insert-sorted {n = .zero} {.[]} []-sorted pv = pv ∷ []
+        -- insert-sorted {n = .1} {(p' , v') ∷ []} [a]-sorted (p , v) with cmp p p' 
+        -- insert-sorted {.1} {(p' , v') ∷ []} [a]-sorted (p , v) | le p≤p' = (p , v) ∷ (p' , v') ∷ []
+        -- insert-sorted {.1} {(p' , v') ∷ []} [a]-sorted (p , v) | gt p>p' = (p' , v') ∷ (p , v) ∷ []
+        -- insert-sorted {n = .(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) with cmp p p₁
+        -- insert-sorted {.(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) | le p≤p₁ = (p , v) ∷ (p₁ , v₁) ∷ (p₂ , v₂) ∷ rest
+        -- insert-sorted {.(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) | gt p>p₁ = {!   !}
+
+        insert-sorted-lemma : (xs : Vec (Priorities × Value) (1 + n))
+                            → (pv : Priorities × Value)
+                            → proj₁ pv ≤ᵖ proj₁ (peek-aux xs) 
+                            → insert-sorted xs pv ≡ pv ∷ xs
+        insert-sorted-lemma xs pv q = {!   !}
+
+        insert-sorted-Sorted : (xs : Vec (Priorities × Value) n)
+                      → SortedVec xs
+                      → (pv : Priorities × Value)
+                      → SortedVec (insert-sorted xs pv)
+        insert-sorted-Sorted xs pv = {!   !} 
+
+        [∈]-insert-sorted : (xs : Vec (Priorities × Value) n)
+                          → (pv : Priorities × Value)
+                          → (y : Priorities × Value)
+                          → pv [∈] xs 
+                          → pv [∈] insert-sorted xs y
+        [∈]-insert-sorted xs pv y q = {!   !}
+
+        insert-sorted-tail : (xs : Vec (Priorities × Value) (2 + n))
+                           → proj₁ (peek-aux (tail xs)) ≤ᵖ proj₁ (head xs) 
+                           → insert-sorted (heap→vec-aux (tail xs)) (head xs) ≡ peek-aux (tail xs) ∷ insert-sorted (heap→vec-aux (pop-aux (tail xs))) (head xs)
+        insert-sorted-tail xs q = {!   !}
+
+        peek-sorted : {xs : Vec (Priorities × Value) (1 + n)}
+                    → SortedVec xs 
+                    → peek-aux xs ≡ head xs
+        peek-sorted [a]-sorted = refl
+        peek-sorted {xs = (pv₁ ∷ pv₂ ∷ rest)} ([a≤b]-sorted a≤b b∷xs) with cmp (proj₁ pv₁) (proj₁ (peek-aux (pv₂ ∷ rest)))
+        ... | le x = sym (lemma-1 (pv₁ ∷ pv₂ ∷ rest) x)
+        ... | gt x rewrite peek-sorted b∷xs = ⊥-elim (x a≤b) 
+
+        -- The smallest element in the heap is the smallest element in the vector.
+        peek-vec-lemma : (h : Vec (Priorities × Value) (1 + n))
+                       → (pv : Priorities × Value)
+                       → peek-aux h ≡ peek-aux (heap→vec-aux h)
+        peek-vec-lemma h pv = sym (begin
+          peek-aux (heap→vec-aux h) ≡⟨ peek-sorted (heap→vec-Sorted h) ⟩
+          peek-aux h ∎)
+
+        ≤-vec-lemma : (xs : Vec (Priorities × Value) (1 + n))
+                    → (pv : Priorities × Value)
+                    → proj₁ pv ≤ᵖ proj₁ (peek-aux xs) 
+                    → proj₁ pv ≤ᵖ proj₁ (peek-aux (heap→vec-aux xs))
+        ≤-vec-lemma xs pv q rewrite sym (peek-vec-lemma xs pv) = q
+
+        insert-heap→vec : {n : ℕ} (h : Vec (Priorities × Value) (1 + n)) 
+                        → heap→vec-aux h ≡ insert-sorted (heap→vec-aux (tail h)) (head h)
+        insert-heap→vec {n = 0} (x ∷ []) = refl
+        insert-heap→vec {n = suc n} (x ∷ xs) with cmp (proj₁ x) (proj₁ (peek-aux xs))
+        insert-heap→vec {n = suc n} (x ∷ xs) | le x₂ = begin
+          peek-aux (x ∷ xs) ∷ peek-aux xs ∷ heap→vec-aux (pop-aux xs) ≡⟨ cong (_∷ peek-aux xs ∷ heap→vec-aux (pop-aux xs)) (sym (lemma-1 (x ∷ xs) x₂)) ⟩
+          x ∷ peek-aux xs ∷ heap→vec-aux (pop-aux xs) ≡⟨ refl ⟩
+          x ∷ heap→vec-aux xs ≡⟨ sym (insert-sorted-lemma (heap→vec-aux xs) x (≤-vec-lemma xs x x₂)) ⟩
+          insert-sorted (heap→vec-aux xs) x ∎
+        insert-heap→vec {n = suc n} (x ∷ xs) | gt x₂ = begin 
+          peek-aux (x ∷ xs) ∷ peek-aux (x ∷ pop-aux xs) ∷ heap→vec-aux (pop-aux (x ∷ pop-aux xs)) ≡⟨ refl ⟩
+          peek-aux (x ∷ xs) ∷ heap→vec-aux (x ∷ pop-aux xs) ≡⟨ {!   !} ⟩
+          peek-aux xs ∷ heap→vec-aux (x ∷ pop-aux xs) ≡⟨ cong (peek-aux xs ∷_) ((insert-heap→vec (x ∷ pop-aux xs))) ⟩
+          peek-aux xs ∷ insert-sorted (heap→vec-aux (pop-aux xs)) x ≡⟨ sym (insert-sorted-tail (x ∷ xs) (≤ᵖ-total-lemma x₂)) ⟩
+          insert-sorted (heap→vec-aux xs) x ∎
 
       ∈ʰ⇒[∈]-lemma-aux : {n : Rank} (h : Vec (Priorities × Value) n) 
                         → (pv : Priorities × Value) 
                         → pv [∈] h 
                         → pv [∈] heap→vec-aux h
-      ∈ʰ⇒[∈]-lemma-aux {n} h pv p∈h = {!   !}
-
+      ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (pv ∷ h) pv ∈-head = head-[∈]-lemma h pv
+      ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (x ∷ xs) pv (∈-tail p∈xs) rewrite insert-heap→vec (x ∷ xs) = [∈]-insert-sorted (heap→vec-aux xs) pv x (∈ʰ⇒[∈]-lemma-aux xs pv p∈xs)
+      -- ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (x ∷ xs) pv (∈-tail p∈xs) = subst (pv [∈]_) (sym (insert-heap→vec (x ∷ xs))) ([∈]-insert-sorted (heap→vec-aux xs) pv x (∈ʰ⇒[∈]-lemma-aux xs pv p∈xs))
 
 -- Weight biased leftist heap
 module MinHeap {l₁ l₂ l₃ : Level} 
                (Pr : Priority {l₁}) (Value : Set l₂) where
   
   open Priority Pr renaming (P to Priorities)
-  open PriorityQueue      
+  -- open PriorityQueue      
 
   open ℕ-ordering using (ℕ-priority)
   open Priority ℕ-priority renaming (
@@ -874,4 +994,4 @@ module MinHeap {l₁ l₂ l₃ : Level}
       insert-∈-aux {suc n} (node x x₁ (p₀ , v₀) (l , r)) (p , v) | gt p₀>p = {! ∈-here (subst Heap lemma-i≡i+0 (node x x₁ (p₀ , v₀) (l , r))) empty z≤n (lemma-d (suc n) 0 0)  !}
 
       -- ∈-here (subst Heap lemma-i≡i+0 (node x x₁ (p₀ , v₀) (l , r))) empty z≤n (lemma-d (suc n) 0 0)
-    
+      
