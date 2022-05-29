@@ -776,6 +776,8 @@ module MinHeap {l₁ l₂ l₃ : Level}
     peek = peek-aux ;
     pop = pop-aux ;
     _∈ʰ_ = _∈_ ;
+    vec→heap = vec→heap-aux ;
+    heap→vec = heap→vec-aux ;
     insert₁-peek = insert₁-peek-aux ;
     insert₁-pop = insert₁-pop-aux ; 
     insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
@@ -783,11 +785,18 @@ module MinHeap {l₁ l₂ l₃ : Level}
     insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
     pop-≤ = pop-≤-aux ; 
-    insert-∈ = insert-∈-aux}
+    insert-∈ = insert-∈-aux ;
+    insert-[∈] = {!insert-[∈]-aux!} ;
+    insert-preserves-∈ = {!insert-preserves-∈-aux!} ;
+    [∈]⇒∈ʰ-lemma = {![∈]⇒∈ʰ-lemma-aux!} ;
+    ∈ʰ⇒[∈]-lemma = {!∈ʰ⇒[∈]-lemma-aux!} }
 
     where
       priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
       priorityQueue-aux = λ n → Heap n
+
+      insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
+      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
 
       peek-aux : {n : Rank} → Heap (suc n) → Priorities × Value
       peek-aux (node _ _ pv _) = pv
@@ -795,8 +804,12 @@ module MinHeap {l₁ l₂ l₃ : Level}
       pop-aux : {n : Rank} → Heap (suc n) → Heap n
       pop-aux (node _ p _ (l , r)) = subst Heap (suc-injective (sym p)) (merge l r)
 
-      insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
-      insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
+      vec→heap-aux : {n : Rank} → Vec (Priorities × Value) n → priorityQueue-aux n
+      vec→heap-aux xs = Data.Vec.foldl priorityQueue-aux insert-aux empty xs
+
+      heap→vec-aux : {n : Rank} → priorityQueue-aux n → Vec (Priorities × Value) n
+      heap→vec-aux {zero} h = []
+      heap→vec-aux {suc n} h = peek-aux h ∷ (heap→vec-aux (pop-aux h))
 
       insert₁-peek-aux : ((p , v) : Priorities × Value) →
                          peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
