@@ -215,7 +215,7 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
 
     -- If we insert an element into a heap and empty the heap into a list, that 
     -- list should contain the inserted element.
-    insert-∈-vec : {n : Rank} → (h : priorityQueue n)
+    insert-[∈] : {n : Rank} → (h : priorityQueue n)
                  → (pv : Priorities × Value)
                  → pv [∈] heap→vec (insert h pv)
 
@@ -329,7 +329,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
     insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
     pop-≤ = pop-≤-aux ; 
     insert-∈ = insert-∈-aux ;
-    insert-∈-vec = insert-∈-vec-aux ;
+    insert-[∈] = insert-[∈]-aux ;
     insert-preserves-∈ = insert-preserves-∈-aux ;
     [∈]⇒∈ʰ-lemma = [∈]⇒∈ʰ-lemma-aux ;
     ∈ʰ⇒[∈]-lemma = ∈ʰ⇒[∈]-lemma-aux }
@@ -346,6 +346,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       insert-aux : {n : Rank} → Vec (Priorities × Value) n → Priorities × Value → Vec (Priorities × Value) (suc n)
       insert-aux xs pv = pv ∷ xs
 
+      -- This is actually just finding the minimum element `min`
       peek-aux : {n : Rank} → Vec (Priorities × Value) (suc n) → Priorities × Value
       peek-aux {zero} (pv ∷ []) = pv
       peek-aux {suc zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) with cmp p₁ p₂
@@ -478,10 +479,19 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
                    → pv [∈] insert-aux h pv
       insert-∈-aux h pv = ∈-head
 
-      insert-∈-vec-aux : {n : Rank} (h : priorityQueue-aux n)
+      -- N.B. It seems Agda can figure out lemma-4 by itself (for the ∈-tail case).
+      head-[∈]-lemma : {n : Rank} (h : Vec (Priorities × Value) n)
+                           → (pv : Priorities × Value)
+                           → pv [∈] (heap→vec-aux (pv ∷ h))
+      head-[∈]-lemma {zero} [] pv = ∈-head
+      head-[∈]-lemma {suc n} (x ∷ h) (p , v) with cmp p (proj₁ (peek-aux (x ∷ h)))
+      head-[∈]-lemma {suc n} (x ∷ h) (p , v) | le p≤p' rewrite sym (lemma-1 ((p , v) ∷ x ∷ h) p≤p') = ∈-head
+      head-[∈]-lemma {suc n} (x ∷ h) (p , v) | gt p>p' = ∈-tail (head-[∈]-lemma (pop-aux (x ∷ h)) (p , v))
+
+      insert-[∈]-aux : {n : Rank} (h : Vec (Priorities × Value) n)
                        → (pv : Priorities × Value) 
                        → pv [∈] (heap→vec-aux (insert-aux h pv))
-      insert-∈-vec-aux {n} h pv = {!   !}
+      insert-[∈]-aux {n} h pv = head-[∈]-lemma h pv
 
       insert-preserves-∈-aux : {n : Rank} (h : Vec (Priorities × Value) n)
                              → (pv : Priorities × Value) {pv' : Priorities × Value} 
