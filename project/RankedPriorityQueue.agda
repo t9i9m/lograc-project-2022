@@ -440,12 +440,14 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
       lemma-3 {suc n} ((p₁ , v₁) ∷ xs) p | gt x = refl
 
       lemma-3' : {n : Rank} → (h : Vec (Priorities × Value) (2 + n))
-              → proj₁ (peek-aux (tail h)) ≤ᵖ proj₁ (head h)
+              → ¬ (proj₁ (head h) ≤ᵖ proj₁ (peek-aux (tail h)))
               → peek-aux (tail h) ≡ peek-aux h
-      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p with cmp p₁ p₂
-      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p | le x = {!   !}
+      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p with cmp p₁ p₂ 
+      lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p | le x = ⊥-elim (p x)
       lemma-3' {zero} ((p₁ , v₁) ∷ (p₂ , v₂) ∷ []) p | gt x = refl
-      lemma-3' {suc n} h p = {!   !}
+      lemma-3' {suc n} ((p₁ , v₁) ∷ xs) p with cmp p₁ (proj₁ (peek-aux xs)) 
+      lemma-3' {suc n} ((p₁ , v₁) ∷ xs) p | le x = ⊥-elim (p x)
+      lemma-3' {suc n} ((p₁ , v₁) ∷ xs) p | gt x = refl
 
       lemma-4 : {n : Rank} → (h : Vec (Priorities × Value) (2 + n))
               → ¬ (proj₁ (head h) ≤ᵖ proj₁ (peek-aux (tail h)))
@@ -552,17 +554,6 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
         -- insert-sorted : {xs : Vec (Priorities × Value) n}
         --               → SortedVec xs → (pv : Priorities × Value)
         --               → Vec (Priorities × Value) (1 + n)
-        -- insert-sorted {xs = []} sorting pv = pv ∷ []
-        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) with cmp p p'
-        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) | le _ = (p , v) ∷ (p' , v') ∷ xs
-        -- insert-sorted {xs = (p' , v') ∷ xs} sorting (p , v) | gt x = {!  !}
-        -- insert-sorted {n = .zero} {.[]} []-sorted pv = pv ∷ []
-        -- insert-sorted {n = .1} {(p' , v') ∷ []} [a]-sorted (p , v) with cmp p p' 
-        -- insert-sorted {.1} {(p' , v') ∷ []} [a]-sorted (p , v) | le p≤p' = (p , v) ∷ (p' , v') ∷ []
-        -- insert-sorted {.1} {(p' , v') ∷ []} [a]-sorted (p , v) | gt p>p' = (p' , v') ∷ (p , v) ∷ []
-        -- insert-sorted {n = .(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) with cmp p p₁
-        -- insert-sorted {.(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) | le p≤p₁ = (p , v) ∷ (p₁ , v₁) ∷ (p₂ , v₂) ∷ rest
-        -- insert-sorted {.(suc (suc _))} {(p₁ , v₁) ∷ (p₂ , v₂) ∷ rest} ([a≤b]-sorted x Sxs) (p , v) | gt p>p₁ = {!   !}
 
         insert-sorted-lemma : (xs : Vec (Priorities × Value) (1 + n))
                             → (pv : Priorities × Value)
@@ -621,7 +612,7 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
           insert-sorted (heap→vec-aux xs) x ∎
         insert-heap→vec {n = suc n} (x ∷ xs) | gt x₂ = begin 
           peek-aux (x ∷ xs) ∷ peek-aux (x ∷ pop-aux xs) ∷ heap→vec-aux (pop-aux (x ∷ pop-aux xs)) ≡⟨ refl ⟩
-          peek-aux (x ∷ xs) ∷ heap→vec-aux (x ∷ pop-aux xs) ≡⟨ {!   !} ⟩
+          peek-aux (x ∷ xs) ∷ heap→vec-aux (x ∷ pop-aux xs) ≡⟨ cong (_∷ heap→vec-aux (x ∷ pop-aux xs)) (sym (lemma-3' (x ∷ xs) x₂)) ⟩
           peek-aux xs ∷ heap→vec-aux (x ∷ pop-aux xs) ≡⟨ cong (peek-aux xs ∷_) ((insert-heap→vec (x ∷ pop-aux xs))) ⟩
           peek-aux xs ∷ insert-sorted (heap→vec-aux (pop-aux xs)) x ≡⟨ sym (insert-sorted-tail (x ∷ xs) (≤ᵖ-total-lemma x₂)) ⟩
           insert-sorted (heap→vec-aux xs) x ∎
@@ -632,7 +623,6 @@ module VecPriorityQueueUnordered {l₁ l₂ : Level}
                         → pv [∈] heap→vec-aux h
       ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (pv ∷ h) pv ∈-head = head-[∈]-lemma h pv
       ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (x ∷ xs) pv (∈-tail p∈xs) rewrite insert-heap→vec (x ∷ xs) = [∈]-insert-sorted (heap→vec-aux xs) pv x (∈ʰ⇒[∈]-lemma-aux xs pv p∈xs)
-      -- ∈ʰ⇒[∈]-lemma-aux {.(suc _)} (x ∷ xs) pv (∈-tail p∈xs) = subst (pv [∈]_) (sym (insert-heap→vec (x ∷ xs))) ([∈]-insert-sorted (heap→vec-aux xs) pv x (∈ʰ⇒[∈]-lemma-aux xs pv p∈xs))
 
 -- Weight biased leftist heap
 module MinHeap {l₁ l₂ l₃ : Level} 
