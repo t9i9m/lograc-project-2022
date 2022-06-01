@@ -26,7 +26,6 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     pop : priorityQueue → priorityQueue
   
     -- behavioural properties
-    -- Note: instead of Maybe, we could have prevented peeking or popping emp using data types?
     peek-emp : peek emp ≡ nothing
     pop-emp : pop emp ≡ emp
     insert₁-peek : ((p , v) : Priorities × Value) → peek (insert emp (p , v)) ≡ just (p , v)

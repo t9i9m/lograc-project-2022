@@ -40,7 +40,7 @@ ListPriorityQueue = record {
     peek-aux : List (Priorities × Value) → Maybe (Priorities × Value)
     peek-aux [] = nothing
     peek-aux ((p , v) ∷ xs) with peek-aux xs 
-    peek-aux ((p , v) ∷ xs) | just (p' , ₂) with cmp p p' 
+    peek-aux ((p , v) ∷ xs) | just (p' , v') with cmp p p' 
     peek-aux ((p , v) ∷ xs) | just (p' , v') | le _ = just (p , v)
     peek-aux ((p , v) ∷ xs) | just (p' , v') | gt _ = just (p' , v')
     peek-aux ((p , v) ∷ xs) | nothing = just (p , v)

@@ -8,7 +8,7 @@ open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; cong₂; s
 open Eq.≡-Reasoning      using (begin_; _≡⟨⟩_; step-≡; _∎)
 
 
--- What follow are a bunch of trivial lemmas to assist Agda in being a proof assistant...
+-- What follow are a bunch of trivial lemmas for natural numbers
 -- TODO: the lemmas could be shortened by finding common patterns...
 
 lemma-i≡i+0 : {i : ℕ} → i ≡ (i + zero)

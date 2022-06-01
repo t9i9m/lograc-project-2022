@@ -27,8 +27,12 @@ module _ where
 
     data Heap {i : Size} : Set (l₁ ⊔ l₂) where 
         empty : Heap
-        node  : {i₁ i₂ : Size< i} → Rank → Priorities × Value 
-                → (l : Heap {i₁}) → (r : Heap {i₂}) → Heap
+        node  : {i₁ i₂ : Size< i} 
+              → Rank 
+              → Priorities × Value 
+              → (l : Heap {i₁}) 
+              → (r : Heap {i₂}) 
+              → Heap
 
     rank : (h : Heap) → Rank
     rank empty = zero

@@ -77,11 +77,11 @@ private
   dropLast-reverse : (xs : Vec A (1 + n)) → reverse xs ≡ last' xs ∷ (reverse (dropLast xs))
   dropLast-reverse xs rewrite sym (reverse-dropLast-id xs) = reverse-∷ʳ (last' xs) (dropLast xs)
 
-  aux-lemma' : {p : A} {xs : Vec A n} (ys : Vec A m)
+  ∈-concat : {p : A} {xs : Vec A n} (ys : Vec A m)
             → p [∈] xs → p [∈] (xs ++ ys)
-  aux-lemma' {xs = x ∷ []} ys ∈-head = ∈-head
-  aux-lemma' {xs = x ∷ x₁ ∷ xs} ys ∈-head = ∈-head
-  aux-lemma' {xs = x ∷ x₁ ∷ xs} ys (∈-tail q) = ∈-tail (aux-lemma' ys q)
+  ∈-concat {xs = x ∷ []} ys ∈-head = ∈-head
+  ∈-concat {xs = x ∷ x₁ ∷ xs} ys ∈-head = ∈-head
+  ∈-concat {xs = x ∷ x₁ ∷ xs} ys (∈-tail q) = ∈-tail (∈-concat ys q)
 
   ∈-append : {p : A} {xs : Vec A n} (y : A)
             → p [∈] xs → p [∈] (xs ∷ʳ y)
