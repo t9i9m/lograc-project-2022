@@ -1,4 +1,4 @@
--- Priority queue on an unordered list.
+-- Priority queue on an unordered list
 
 open import Ordering using (Priority; module ℕ-ordering) -- This is our file
 open import Level        renaming (zero to lzero; suc to lsuc)

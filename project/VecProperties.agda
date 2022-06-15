@@ -1,4 +1,4 @@
--- A bunch of properties about reversing vectors and ∈
+-- A bunch of properties about reversing vectors, droping elements in vectors and ∈ (is given element included in vector)
 
 module VecProperties where
 
@@ -11,9 +11,9 @@ open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; subst)
 open Eq.≡-Reasoning      using (begin_; _≡⟨⟩_; step-≡; _∎)
 
 open import Data.Vec using (reverse; _∷ʳ_; _++_; initLast; last; init)
-
 -- Can't import other useful properties because of old Agda version... :(
 -- open import Data.Vec.Properties using (reverse-∷)
+
 
 -- Note: using `variable n : ℕ` makes is easy to work with vector sizes.
 private
@@ -22,7 +22,6 @@ private
     A : Set a
     m n : ℕ
 
--- An inductive relation that specifies that a Vector contains a given element.
 -- `a [∈] b` is read as "a in vector b"
 data _[∈]_ {A : Set a} (x : A) : Vec A n → Set a where
   ∈-head : {h : Vec A n} → x [∈] (x ∷ h)

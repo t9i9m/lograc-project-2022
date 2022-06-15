@@ -1,7 +1,7 @@
--- Weight biased leftist heap
+-- Weight biased leftist heap (withour Rank as part of Heap definition, instead using Size as merge termination checker)
 
 {-# OPTIONS --sized-types #-}
-open import Ordering using (Priority; module ℕ-ordering) -- This is our file
+open import Ordering using (Priority; module ℕ-ordering)
 open import Level        renaming (zero to lzero; suc to lsuc)
 
 module Simple.Tree.LeftistHeap {l₁ l₂ l₃ : Level} (Pr : Priority {l₁}) (Value : Set l₂) where
@@ -117,3 +117,4 @@ MinHeapPriorityQueue = record {
     insert₂-pop-p₂≤p₁-aux (p₁ , v₁) (p₂ , v₂) p₂≤p₁ p₁≢p₂ with cmp p₁ p₂ 
     ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
     ... | gt _ = refl
+ 

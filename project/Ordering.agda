@@ -1,3 +1,5 @@
+-- Ordering properties and compare functions for Priority relation
+
 module Ordering where 
 
 open import Level        renaming (zero to lzero; suc to lsuc)
@@ -46,10 +48,6 @@ record TotalOrdering {l : Level} : Set (lsuc l) where
 
   ≤ᵖ-proj₂ : {a b : P} → a ≤ᵖ b → P
   ≤ᵖ-proj₂ {a} {b} p = b
-
--- If you uncomment the next two lines Agda complains... ?!?!
--- module _ {l : Level} where
---   open TotalOrdering {l}
 
   data Order (a b : P) : Set where
     le : a ≤ᵖ b → Order a b

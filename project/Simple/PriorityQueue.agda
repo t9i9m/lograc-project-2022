@@ -1,3 +1,5 @@
+-- Record of PriorityQueue (simle version that allows peeking and poping of empty PriorityQueue)
+
 module Simple.PriorityQueue where
 
 open import Ordering using (Priority; module ℕ-ordering) -- This is our file

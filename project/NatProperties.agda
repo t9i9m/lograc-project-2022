@@ -1,3 +1,5 @@
+-- A bunch of trivial lemmas for natural numbers
+
 module NatProperties where
 
 open import Data.List    using (List; []; _∷_; foldl; foldr)
@@ -8,9 +10,6 @@ open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; cong₂; s
 open Eq.≡-Reasoning      using (begin_; _≡⟨⟩_; step-≡; _∎)
 
 
--- What follow are a bunch of trivial lemmas for natural numbers
--- TODO: the lemmas could be shortened by finding common patterns...
-
 lemma-i≡i+0 : {i : ℕ} → i ≡ (i + zero)
 lemma-i≡i+0 {i} = sym (+-comm i zero)
 
@@ -18,7 +17,7 @@ lemma-i+1≡suci : {i : ℕ} → (i + 1) ≡ (suc i)
 lemma-i+1≡suci {i} = +-comm i 1
 
 -- lemma-+-sucₙ' is a generalization of lemma-+-sucₙ
--- Both are a generalization of lemma-1aa to n elements
+-- Both are a generalization of lemma-+-suc to n elements
 lemma-+-sucₙ' : (a s : ℕ) → (xs : List ℕ) → a + suc (foldl _+_ s xs) ≡ suc (foldl _+_ a (s ∷ xs))
 lemma-+-sucₙ' a s [] = +-suc a s
 lemma-+-sucₙ' a s (x ∷ xs) = begin 
@@ -35,13 +34,61 @@ lemma-+-sucₙ a xs = begin
     suc (foldl _+_ a xs)
     ∎
 
-lemma-1aa : (b c d : ℕ) → (b + suc (c + d)) ≡ suc (b + c + d)
-lemma-1aa b c d =
+lemma-+-suc : (b c d : ℕ) → (b + suc (c + d)) ≡ suc (b + c + d)
+lemma-+-suc b c d =
     begin b + suc (c + d) ≡⟨ +-suc b (c + d) ⟩ 
     suc (b + (c + d)) ≡⟨ cong suc (sym (+-assoc b c d)) ⟩
     suc (b + c + d) 
     ∎
 
+-- Lemmas for merge cases in LeftistHeap
+-- For merge case 1
+lemma-a : (a b c : ℕ) → a + b + c ≡ a + (b + c)
+lemma-a a b c = +-assoc a b c
+
+-- For merge case 2
+lemma-b : (a b c : ℕ) → a + b + c ≡ (b + c) + a
+lemma-b a b c = 
+    begin
+    a + b + c ≡⟨ lemma-a a b c ⟩ 
+    a + (b + c) ≡⟨ +-comm a ((b + c)) ⟩ 
+    (b + c) + a
+    ∎
+
+-- For merge case 3
+lemma-cc : (a b c : ℕ) → a + b + c ≡ b + a + c
+lemma-cc a b c =
+    begin
+    a + b + c ≡⟨ cong₂ (_+_) (+-comm a b) refl ⟩
+    b + a + c
+    ∎
+
+lemma-c : (a b c : ℕ) → a + suc (b + c) ≡ suc (b + (a + c))
+lemma-c a b c = 
+    begin
+    a + suc (b + c) ≡⟨ lemma-+-suc a b c ⟩
+    suc (a + b + c) ≡⟨ cong suc (lemma-cc a b c) ⟩
+    suc (b + a + c) ≡⟨ cong suc (lemma-a b a c) ⟩
+    suc (b + (a + c)) ∎
+
+-- For merge case 4
+lemma-d : (a b c : ℕ) → a + suc (b + c) ≡ suc (a + c + b)
+lemma-d a b c =
+    begin 
+    a + suc (b + c) ≡⟨ lemma-c a b c ⟩
+    suc (b + (a + c)) ≡⟨ cong suc (+-comm b (a + c)) ⟩
+    suc (a + c + b) ∎
+
+-- For merge cases 1 and 2
+lemma-e : (a b c d : ℕ) → suc (a + b) ≡ d → suc (a + b + c) ≡ d + c
+lemma-e a b c .(suc (a + b)) refl = refl
+
+-- For merge cases 3 and 4
+lemma-f : (a b c d : ℕ) → suc (a + b) ≡ d → c + suc (a + b) ≡ c + d
+lemma-f a b c .(suc (a + b)) refl = refl
+
+-- Lemmas from previous versions of merge in LeftistHeap (currently unused)
+-- For merge case 1
 lemma-1a : (a b c d : ℕ) → 
             (a + (b + suc (c + d))) ≡ suc (a + b + c + d)
 lemma-1a a b c d = 
@@ -60,7 +107,6 @@ lemma-1b a b c d =
     suc (a + b + c + d)
     ∎
 
--- For merge case 1
 lemma-1 : (a b c d : ℕ) → 
             suc (a + (b + suc (c + d))) ≡ suc (a + b + suc (c + d))
 lemma-1 a b c d = cong suc 
@@ -69,6 +115,7 @@ lemma-1 a b c d = cong suc
     (sym 
         (lemma-1b a b c d)))
 
+-- For merge case 2
 lemma-2a : (a b c : ℕ) → a + (b + suc c) ≡ suc (a + b + c)
 lemma-2a a b c = 
     begin 
@@ -85,26 +132,19 @@ lemma-2b a b c =
     suc (a + b + c) 
     ∎
 
--- For merge case 2
 lemma-2 : (a b c d : ℕ) → 
             suc (a + suc (b + c) + d) ≡ suc (d + a + suc (b + c))
 lemma-2 a b c d = cong suc
     (begin 
-    a + suc (b + c) + d ≡⟨ cong (_+ d) (lemma-1aa a b c) ⟩ 
+    a + suc (b + c) + d ≡⟨ cong (_+ d) (lemma-+-suc a b c) ⟩ 
     suc (a + b + c) + d ≡⟨ +-comm (suc (a + b + c)) d ⟩ 
     d + suc (a + b + c) ≡⟨ lemma-+-sucₙ d (a ∷ b ∷ c ∷ []) ⟩ 
     suc (d + a + b + c) ≡⟨ cong suc (+-assoc (d + a) b c) ⟩ 
     suc (d + a + (b + c)) ≡⟨ sym (lemma-2b d a (b + c)) ⟩ 
     d + a + suc (b + c)
     ∎)
-    
-    -- (begin
-    --   a + suc b+c + d   ≡⟨ +-comm (a + suc b+c) d ⟩ 
-    --   d + (a + suc b+c) ≡⟨ lemma-2a d a b+c ⟩ 
-    --   suc (d + a + b+c) ≡⟨ sym (lemma-2b d a b+c) ⟩ 
-    --   d + a + suc b+c
-    --   ∎)
 
+-- For merge case 3
 lemma-3a : (a b c d : ℕ) → a + b + c + d ≡ c + d + a + b
 lemma-3a a b c d = 
     begin
@@ -114,7 +154,6 @@ lemma-3a a b c d =
     c + d + a + b
     ∎
 
--- For merge case 3
 lemma-3 : (a b c d : ℕ) →
             suc (a + (b + suc (c + d))) ≡ suc (c + d + suc (a + b))
 lemma-3 a b c d = cong suc 
@@ -125,6 +164,7 @@ lemma-3 a b c d = cong suc
     c + d + suc (a + b)
     ∎)
 
+-- For merge case 4
 lemma-4a : (a b c d : ℕ) →
             a + suc (b + c) + d ≡ suc (a + b + c + d)
 lemma-4a a b c d = 
@@ -145,7 +185,6 @@ lemma-4b a b c d =
     b + c + d + a
     ∎
     
--- For merge case 4
 lemma-4 : (a b c d : ℕ) → 
             suc (a + suc (b + c) + d) ≡ suc (b + c + suc (d + a))
 lemma-4 a b c d = cong suc 
@@ -155,45 +194,3 @@ lemma-4 a b c d = cong suc
     suc (b + c + d + a) ≡⟨ sym (lemma-1b b c d a) ⟩ 
     b + c + suc (d + a)
     ∎)
-
-a≡a : (a : ℕ) → a ≡ a
-a≡a a = refl
-
-lemma-a : (a b c : ℕ) → a + b + c ≡ a + (b + c)
-lemma-a a b c = +-assoc a b c
-
-lemma-b : (a b c : ℕ) → a + b + c ≡ (b + c) + a
-lemma-b a b c = 
-    begin
-    a + b + c ≡⟨ lemma-a a b c ⟩ 
-    a + (b + c) ≡⟨ +-comm a ((b + c)) ⟩ 
-    (b + c) + a
-    ∎
-
-lemma-cc : (a b c : ℕ) → a + b + c ≡ b + a + c
-lemma-cc a b c =
-    begin
-    a + b + c ≡⟨ cong₂ (_+_) (+-comm a b) refl ⟩
-    b + a + c
-    ∎
-
-lemma-c : (a b c : ℕ) → a + suc (b + c) ≡ suc (b + (a + c))
-lemma-c a b c = 
-    begin
-    a + suc (b + c) ≡⟨ lemma-1aa a b c ⟩
-    suc (a + b + c) ≡⟨ cong suc (lemma-cc a b c) ⟩
-    suc (b + a + c) ≡⟨ cong suc (lemma-a b a c) ⟩
-    suc (b + (a + c)) ∎
-
-lemma-d : (a b c : ℕ) → a + suc (b + c) ≡ suc (a + c + b)
-lemma-d a b c =
-    begin 
-    a + suc (b + c) ≡⟨ lemma-c a b c ⟩
-    suc (b + (a + c)) ≡⟨ cong suc (+-comm b (a + c)) ⟩
-    suc (a + c + b) ∎
-
-lemma-e : (a b c d : ℕ) → suc (a + b) ≡ d → suc (a + b + c) ≡ d + c
-lemma-e a b c .(suc (a + b)) refl = refl
-
-lemma-f : (a b c d : ℕ) → suc (a + b) ≡ d → c + suc (a + b) ≡ c + d
-lemma-f a b c .(suc (a + b)) refl = refl

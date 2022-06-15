@@ -1,3 +1,5 @@
+-- Record of PriorityQueue (Ranked)
+
 module Ranked.PriorityQueue where
 
 open import Ordering using (Priority; module ℕ-ordering)
@@ -150,10 +152,10 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
 
     -- Popping all elements from a heap created from a list of elements should give
     -- back a permutation of the initial list.
-    postulate  -- TODO temporary postulate because of import errors
+    -- TODO temporary postulate because of import errors
+    postulate
       vec→heap→vec-Permutation : (xs : Vec (Priorities × Value) n) 
                                 → (heap→vec' (vec→heap xs)) π xs
-      -- vec→heap→vec-Permutation xs = {!   !}
 
     -- This is an alternative to the Permutation π property.
     -- Proof that any given element from a vector will survive insertion and popping.
@@ -169,11 +171,4 @@ record PriorityQueue {l₁ l₂ l₃ : Level}
     priorityQueue-lemma : (xs : Vec (Priorities × Value) n)
                         → SortedVec (heap→vec' (vec→heap xs)) × (heap→vec' (vec→heap xs)) π xs
     priorityQueue-lemma xs = (heap→vec-Sorted (vec→heap xs)) , (vec→heap→vec-Permutation xs)
-    
-
-  --DONE po popu dobim ven value, ostali ap majo vsi višjo piroriteto
-  --DONE element se nahaja v vrsti
-  --DONE ko dam v eno vrsto elemtov pa vse ven poberem, je na tem seznamu eden izmed the elemntov
-  --DONE ko se lement nahaja v priorityQueue se pozneje nahaj tudi v listu po peekih
-  --TODO ko je elemnt dveh dreves v merge se nahaja pozneje v drvesu
 
