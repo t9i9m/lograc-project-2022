@@ -20,3 +20,5 @@ This repository is set up as an Agda library and it contains:
 - Chris Okasaki (1998). Purely Functional Data Structures. Cambridge University Press. ISBN: 0521663504
 
 - Jan Stolarek (May 2022). Verifying weight biased leftist heaps using dependent types. URL: https://jstolarek.github.io/files/dep-typed-wbl-heaps.pdf
+
+- Twan van Laarhoven (June 2022). The complete correctness of sorting. URL: https://www.twanvl.nl/blog/agda/sorting

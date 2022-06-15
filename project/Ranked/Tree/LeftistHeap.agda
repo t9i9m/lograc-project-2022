@@ -1,6 +1,6 @@
 -- Weight biased leftist heap (Ranked)
 
-open import Ordering using (Priority; module ℕ-ordering) -- This is our file
+open import Ordering using (Priority; module ℕ-ordering)
 open import Level        renaming (zero to lzero; suc to lsuc)
 
 module Ranked.Tree.LeftistHeap {l₁ l₂ l₃ : Level} (Pr : Priority {l₁}) (Value : Set l₂) where
@@ -26,20 +26,22 @@ open import Relation.Nullary     using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq                  using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst)
 
+PV = Priorities × Value
+
 
 data Heap : Rank → Set (l₁ ⊔ l₂) where
   empty : Heap zero
   node  : {nₗ nᵣ n : Rank} 
         → nᵣ ≤ nₗ 
         → n ≡ suc (nₗ + nᵣ)
-        → Priorities × Value 
+        → PV 
         → (Heap nₗ) × (Heap nᵣ)
         → Heap n 
 
-data _∈_ {n : Rank} (pv : Priorities × Value) : Heap n → Set (l₁ ⊔ l₂) where
+data _∈_ {n : Rank} (pv : PV) : Heap n → Set (l₁ ⊔ l₂) where
     ∈-here  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) → pv ∈ node proof₁ proof₂ pv (l , r)
-    ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ l → pv ∈ node proof₁ proof₂ pv₂ (l , r)
-    ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : Priorities × Value) → pv ∈ r → pv ∈ node proof₁ proof₂ pv₂ (l , r)
+    ∈-left  : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : PV) → pv ∈ l → pv ∈ node proof₁ proof₂ pv₂ (l , r)
+    ∈-right : {nₗ nᵣ : Rank} (l : Heap nₗ) (r : Heap nᵣ) (proof₁ : nᵣ ≤ nₗ) (proof₂ : n ≡ suc (nₗ + nᵣ)) (pv₂ : PV) → pv ∈ r → pv ∈ node proof₁ proof₂ pv₂ (l , r)
 
 rank : {i : Rank} → Heap i → Rank
 rank {i} h = i
@@ -61,7 +63,7 @@ merge' (acc rec)
 merge : {nₗ nᵣ : Rank} → (l : Heap nₗ) → (r : Heap nᵣ) → Heap (nₗ + nᵣ)
 merge l r = merge' ((<'-well-founded (rank l , rank r))) l r
 
-singleton : Priorities × Value → Heap 1
+singleton : PV → Heap 1
 singleton pv = node z≤n refl pv (empty , empty)
 
 MinHeapPriorityQueue : PriorityQueue Pr Value   
@@ -72,49 +74,46 @@ MinHeapPriorityQueue = record {
   peek = peek-aux ;
   pop = pop-aux ;
   _∈ʰ_ = _∈_ ;
-  vec→heap = vec→heap-aux ;
   heap→vec = heap→vec-aux ;
+  vec→heap = vec→heap-aux ;
   insert₁-peek = insert₁-peek-aux ;
   insert₁-pop = insert₁-pop-aux ; 
   insert₂-peek-p₁≤p₂ = insert₂-peek-p₁≤p₂-aux ;
   insert₂-peek-p₂≤p₁ = insert₂-peek-p₂≤p₁-aux ;
   insert₂-pop-p₁≤p₂ = insert₂-pop-p₁≤p₂-aux ;
   insert₂-pop-p₂≤p₁ = insert₂-pop-p₂≤p₁-aux ;
-  pop-≤ = pop-≤-aux ; 
-  insert-∈ = {!insert-∈-aux!} ;
-  insert-[∈] = {!insert-[∈]-aux!} ;
-  insert-preserves-∈ = {!insert-preserves-∈-aux!} ;
-  [∈]⇒∈ʰ-lemma = {![∈]⇒∈ʰ-lemma-aux!} ;
-  ∈ʰ⇒[∈]-lemma = {!∈ʰ⇒[∈]-lemma-aux!} }
+  pop-≤ = pop-≤-aux ;
+  peek-vec◂pop-vec = peek-vec◂pop-vec-aux ;
+  vec→heap→vec-Permutation = vec→heap→vec-Permutation-aux }
 
   where
     priorityQueue-aux : Rank → Set (l₁ ⊔ l₂)
     priorityQueue-aux = λ n → Heap n
 
-    insert-aux : {n : Rank} → Heap n → Priorities × Value → Heap (suc n)
+    insert-aux : {n : Rank} → Heap n → PV → Heap (suc n)
     insert-aux = λ h pv → subst Heap lemma-i+1≡suci ((merge h (singleton pv)))
 
-    peek-aux : {n : Rank} → Heap (suc n) → Priorities × Value
+    peek-aux : {n : Rank} → Heap (suc n) → PV
     peek-aux (node _ _ pv _) = pv
 
     pop-aux : {n : Rank} → Heap (suc n) → Heap n
     pop-aux (node _ p _ (l , r)) = subst Heap (suc-injective (sym p)) (merge l r)
 
-    vec→heap-aux : {n : Rank} → Vec (Priorities × Value) n → priorityQueue-aux n
-    vec→heap-aux xs = Data.Vec.foldl priorityQueue-aux insert-aux empty xs
-
-    heap→vec-aux : {n : Rank} → priorityQueue-aux n → Vec (Priorities × Value) n
+    heap→vec-aux : {n : Rank} → priorityQueue-aux n → Vec (PV) n
     heap→vec-aux {zero} h = []
     heap→vec-aux {suc n} h = peek-aux h ∷ (heap→vec-aux (pop-aux h))
 
-    insert₁-peek-aux : ((p , v) : Priorities × Value) →
+    vec→heap-aux : {n : Rank} → Vec (PV) n → priorityQueue-aux n
+    vec→heap-aux xs = Data.Vec.foldl priorityQueue-aux insert-aux empty xs
+
+    insert₁-peek-aux : ((p , v) : PV) →
                         peek-aux (merge empty (singleton (p , v))) ≡ (p , v)
     insert₁-peek-aux (p , v) = refl
 
-    insert₁-pop-aux : (pv : Priorities × Value) → pop-aux (insert-aux empty pv) ≡ empty
+    insert₁-pop-aux : (pv : PV) → pop-aux (insert-aux empty pv) ≡ empty
     insert₁-pop-aux x = refl
 
-    insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+    insert₂-peek-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : PV) 
                 → p₁ ≤ᵖ p₂
                 → p₁ ≢ p₂
                 → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₁ , v₁)
@@ -122,7 +121,7 @@ MinHeapPriorityQueue = record {
     ... | le _ = refl
     ... | gt p₁>p₂ = ⊥-elim (p₁>p₂ p₁≤p₂)
 
-    insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+    insert₂-peek-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : PV) 
                 → p₂ ≤ᵖ p₁
                 → p₁ ≢ p₂
                 → peek-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ (p₂ , v₂)
@@ -130,7 +129,7 @@ MinHeapPriorityQueue = record {
     ... | le p₁≤p₂ = ⊥-elim (p₁≢p₂ (≤ᵖ-antisym p₁≤p₂ p₂≤p₁))
     ... | gt _ = refl
 
-    insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+    insert₂-pop-p₁≤p₂-aux : ((p₁ , v₁) (p₂ , v₂) : PV) 
                 → p₁ ≤ᵖ p₂
                 → p₁ ≢ p₂
                 → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₂ , v₂)
@@ -138,7 +137,7 @@ MinHeapPriorityQueue = record {
     ... | le p₁≤p₂ = refl
     ... | gt p₂>p₁ = ⊥-elim (p₂>p₁ p₁≤p₂)
 
-    insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : Priorities × Value) 
+    insert₂-pop-p₂≤p₁-aux : ((p₁ , v₁) (p₂ , v₂) : PV) 
                 → p₂ ≤ᵖ p₁
                 → p₁ ≢ p₂
                 → pop-aux (merge (merge empty (singleton (p₁ , v₁))) (singleton (p₂ , v₂))) ≡ singleton (p₁ , v₁)
@@ -151,4 +150,14 @@ MinHeapPriorityQueue = record {
     pop-≤-aux : {n : Rank} (h : priorityQueue-aux (suc (suc n))) 
               → proj₁ (peek-aux h) ≤ᵖ proj₁ (peek-aux (pop-aux h))
     pop-≤-aux h = {!   !}
-     
+
+    peek-vec◂pop-vec-aux : {n : Rank} (xs : Vec (PV) (suc n))
+                → (PV) ,
+                peek-aux (vec→heap-aux xs) ◂ heap→vec-aux (pop-aux (vec→heap-aux xs)) ≡ xs
+    peek-vec◂pop-vec-aux (x ∷ []) = here
+    peek-vec◂pop-vec-aux (x ∷ x₁ ∷ xs) = {!   !}
+
+    vec→heap→vec-Permutation-aux : {n : Rank} (xs : Vec (PV) n) 
+                              → IsPermutation PV (heap→vec-aux (vec→heap-aux xs)) xs
+    vec→heap→vec-Permutation-aux [] = []
+    vec→heap→vec-Permutation-aux (x ∷ xs) = (peek-vec◂pop-vec-aux (x ∷ xs)) ∷ id-permutation PV (heap→vec-aux (pop-aux (vec→heap-aux (x ∷ xs))))
