@@ -9,8 +9,6 @@ This repository is set up as an Agda library and it contains:
 
 * `agda-stdlib/`: Agda standard library as a git submodule
 
-* `agda-categories/`: Agda categories library as a git submodule
-
 * `project/`: the top-level source code directory for the Agda code
   * `project/Simple` contains simple implementations of priority queues _without_ additional rank information _with_ possibility of peeking and poping an empty Queue: `Simple.Tree.LeftistHeap` and `Simple.List.Unordered`.
   * `project/Ranked` contains implementations of priority queues _with_ additional rank information _without_ possibility of peeking and poping an empty Queue: `Ranked.Tree.LeftistHeap` and `Ranked.Vec.Unordered`.
